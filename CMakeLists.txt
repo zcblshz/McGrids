@@ -20,6 +20,14 @@ if(MSVC)
 
 else()
 
+  #add ThirdPartyInclude
+  list( APPEND ThirdPartIncludePath "/home/daxuan/Documents/geogram/src/lib")
+  list( APPEND ThirdPartIncludePath "/home/daxuan/Documents/geogram/src/lib/third_party")
+  target_include_directories(fastCVT PRIVATE ${ThirdPartIncludePath})
+  #add ThirdPartylib
+  list( APPEND ThirdPartLibPath "/home/daxuan/Documents/geogram/build/Linux64-gcc-dynamic-Release/lib/libgeogram.so")
+  target_link_libraries(fastCVT PRIVATE ${ThirdPartLibPath})
+
 endif()
 
 
