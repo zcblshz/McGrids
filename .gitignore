@@ -3,7 +3,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+build/*
+*.obj
+.vscode
 # C extensions
 *.so
 

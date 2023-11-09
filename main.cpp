@@ -42,13 +42,12 @@ int main(int argc, char **argv)
 {
 	using namespace GEO;
 
-	int constrain_res = 4;
+	int constrain_res = 5;
 	int num_constrain_points = constrain_res * constrain_res * constrain_res;
 	int num_points = 1000;
 	int num_iter = 5;
 
 	vector<double> points;
-	points.resize(3 * (num_constrain_points + num_points));
 
 	// always put constrained points in front
 	for (int i = 0; i < constrain_res; i++)
@@ -57,19 +56,15 @@ int main(int argc, char **argv)
 		{
 			for (int k = 0; k < constrain_res; k++)
 			{
-				double x = (1. / double(constrain_res - 1)) * i;
-				double y = (1. / double(constrain_res - 1)) * j;
-				double z = (1. / double(constrain_res - 1)) * k;
-				int ind = i * constrain_res * constrain_res + j * constrain_res + k;
-				points[ind * 3] = x;
-				points[ind * 3 + 1] = y;
-				points[ind * 3 + 2] = z;
+				points.push_back((1. / double(constrain_res - 1)) * i);
+				points.push_back((1. / double(constrain_res - 1)) * j);
+				points.push_back((1. / double(constrain_res - 1)) * k);
 			}
 		}
 	}
 
 	for (index_t i = 0; i < 3 * num_points; ++i) {
-		points[i + 3 * num_constrain_points] = Numeric::random_float64();
+		points.push_back(Numeric::random_float64());
 	}
 
 	GEO::initialize();
@@ -77,18 +72,22 @@ int main(int argc, char **argv)
 	std::chrono::time_point<std::chrono::system_clock> start, end;
 	start = std::chrono::system_clock::now();
 	Fast_CVT cvt = Fast_CVT();
-	cvt.set_points(num_constrain_points + num_points, num_constrain_points, points.data());
+	cvt.set_points(points.size()/3, 0, points.data());
+
 	end = std::chrono::system_clock::now();
-	std::cout << num_constrain_points + num_points << " points delaunay triangulation elapsed time: " << (end - start).count() / 1000 << " ms\n";
+	std::cout << points.size() << " points delaunay triangulation elapsed time: " << (end - start).count() / 1000 << " ms\n";
 
 	cvt.output_delaunay("output.obj");
 
 	std::vector<float> point_error;
+	std::vector<float> point_sdfs;
+
 	for (index_t i = 0; i < points.size() / 3; i++) {
 		double sd = sphere_sdf(points[i * 3], points[i * 3 + 1], points[i * 3 + 2]);
 		point_error.push_back(abs(1. / sd) * abs(1. / sd));
+		point_sdfs.push_back(sd);
 	}
-	cvt.set_errors(point_error.size(), point_error.data());
+	cvt.set_sdfs(point_sdfs.size(), point_sdfs.data());
 
 	start = std::chrono::system_clock::now();
 	cvt.Lloyd_iterations(num_iter);
@@ -96,6 +95,33 @@ int main(int argc, char **argv)
 	std::cout << "CVT " << num_iter << " iters elapsed time: " << (end - start).count() / 1000 << " ms\n";
 
 	cvt.output_delaunay("output2.obj");
+	for (int i=0; i<3; i++){
+		
+		std::vector<vec3> mid_points = cvt.compute_cell_intersection_mid_point();
+		std::string output_filename = "mid_points_" + std::to_string(i) + ".obj";
+		std::ofstream outfile(output_filename); 
+		for (int i = 0; i < mid_points.size(); i++) {
+			outfile << "v " << mid_points[i].x << " " << mid_points[i].y << " " << mid_points[i].z << "\n";
+		}
+		std::vector<float> mid_point_sdfs;
+
+		for(int n=0; n<mid_points.size(); n++){
+			mid_point_sdfs.push_back(sphere_sdf(mid_points[n].x, mid_points[n].y, mid_points[n].z));
+		}
+		std::vector<double> mid_points_flatten;
+		for (int i = 0; i < mid_points.size(); i++) {
+			mid_points_flatten.push_back(mid_points[i].x);
+			mid_points_flatten.push_back(mid_points[i].y);
+			mid_points_flatten.push_back(mid_points[i].z);
+		}
+		cvt.set_points(mid_point_sdfs.size(), 0, mid_points_flatten.data());
+		cvt.set_sdfs(mid_point_sdfs.size(), mid_point_sdfs.data());
+
+
+	}
+
+
+
 	//int nb_points = 20000;
 	//std::vector<vec3> samples = cvt.near_surface_sampling(nb_points);
 

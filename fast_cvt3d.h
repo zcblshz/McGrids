@@ -36,6 +36,7 @@ namespace GEO {
 
 		void set_points(index_t nb_points, index_t nb_constrain_points, const double* points);
 		void set_errors(int nb_errors, const float *errors);
+		void set_sdfs(int nb_errors, const float *sdfs);
 
 		// cvt relaxation for point sets
 		void Lloyd_iterations(index_t nb_iter);
@@ -48,7 +49,8 @@ namespace GEO {
 
 		// IO functions
 		void output_delaunay(std::string filename);
-
+		std::vector<vec3> compute_cell_intersection_mid_point();
+		void add_points(const std::vector<vec3>& points, const std::vector<double>&sdfs);
 
 	private:
 
@@ -56,8 +58,13 @@ namespace GEO {
 		PeriodicDelaunay3d::IncidentTetrahedra W_;
 
 		vector<double> points_;
+		vector<double> point_sdfs_;
+		vector<short> point_signs_;
+		vector<double> cell_errors_;
+
 		std::vector<double> point_error_;
 		vector<bool> point_is_locked_;
+
 
 		index_t cur_iter_;
 		index_t nb_iter_;
@@ -93,10 +100,11 @@ namespace GEO {
 
 
 		// First step private functions
-		std::vector<int>  get_cell_indices(int nb_points);
+		// std::vector<int> get_cell_indices(int nb_points);
 		std::vector<vec3> sample_cells(int* cell_indices, int nb_cell);
-		std::vector<int> Fast_CVT::get_tets(int nb_points);
+		std::vector<int> get_tets(int nb_points);
 		vec3 sample_tet(std::vector<int> tri2v);
-
+		vec3 compute_mid_point(const std::vector<vec3> &points);
+		vec3 interpolate(double* p1, double* p2, double sd1, double sd2);
 	};
 }
