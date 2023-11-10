@@ -30,7 +30,7 @@ int main(int argc, char **argv)
     std::vector<double> point_values;
     for (int i = 0; i < points.size() / 3; i++)
     {
-        point_values.push_back(SDF::sphere_sdf(points[i * 3], points[i * 3 + 1], points[i * 3 + 2]));
+        point_values.push_back(SDF::sdBox(points[i * 3], points[i * 3 + 1], points[i * 3 + 2]));
     }
     mcmt.add_points(points.size() / 3, points.data(), point_values.data());
     
@@ -40,13 +40,13 @@ int main(int argc, char **argv)
         // sample_points = mcmt.lloyd_relaxation(sample_points.data(), sample_points.size()/3, 1);
         for (int i = 0; i < sample_points.size() / 3; i++)
         {
-            point_values.push_back(SDF::sphere_sdf(sample_points[i * 3], sample_points[i * 3 + 1], sample_points[i * 3 + 2]));
+            point_values.push_back(SDF::sdBox(sample_points[i * 3], sample_points[i * 3 + 1], sample_points[i * 3 + 2]));
         }
         mcmt.add_points(sample_points.size() / 3, sample_points.data(), point_values.data());
         std::cout << "Sampling iter: " << i << std::endl;
     }
-    mcmt.output_grid_points("grid.obj");
-    mcmt.save_triangle_soup("soup.obj");
+    mcmt.output_grid_points("step_1_points.obj");
+    mcmt.save_triangle_soup("step_1_mesh.obj");
     for (int i = 0; i < 100; i++)
     {
         point_values.clear();
@@ -57,7 +57,7 @@ int main(int argc, char **argv)
         std::vector<double> mid_points = mcmt.get_mid_points();
         for (int j = 0; j < mid_points.size() / 3; j++)
         {
-            point_values.push_back(SDF::sphere_sdf(mid_points[j * 3], mid_points[j * 3 + 1], mid_points[j * 3 + 2]));
+            point_values.push_back(SDF::sdBox(mid_points[j * 3], mid_points[j * 3 + 1], mid_points[j * 3 + 2]));
             mid_file << "v " << mid_points[j * 3] << " " << mid_points[j * 3 + 1] << " " << mid_points[j * 3 + 2] << std::endl;
         }
         std::vector<double> additional_points;
@@ -74,7 +74,7 @@ int main(int argc, char **argv)
         if (additional_points.size() == 0)
             break;
         mcmt.add_points(additional_points.size() / 3, additional_points.data(), additional_point_values.data());
-        mcmt.save_triangle_soup("soup_" + std::to_string(i) + ".obj");
+        mcmt.save_triangle_soup("step_2_mesh_" + std::to_string(i) + ".obj");
     }
 
     return 0;
