@@ -4,7 +4,7 @@
 int main(int argc, char **argv)
 {
     using namespace GEO;
-    double threshold = 1e-3;
+    double threshold = 1e-4;
     int constrain_res = 8;
     int num_constrain_points = constrain_res * constrain_res * constrain_res;
 
@@ -34,9 +34,11 @@ int main(int argc, char **argv)
     }
     mcmt.add_points(points.size() / 3, points.data(), point_values.data());
     mcmt.output_grid_points("grid.obj");
-    point_values.clear();
+    mcmt.save_triangle_soup("soup.obj");
     for (int i = 0; i < 10; i++)
     {
+        point_values.clear();
+
         std::string filename = "grid_" + std::to_string(i) + ".obj";
         std::ofstream mid_file(filename);
 
@@ -60,7 +62,7 @@ int main(int argc, char **argv)
         if (additional_points.size() == 0)
             break;
         mcmt.add_points(additional_points.size() / 3, additional_points.data(), additional_point_values.data());
-        mcmt.output_grid_points("grid.obj");
+        mcmt.save_triangle_soup("soup_" + std::to_string(i) + ".obj");
     }
 
     return 0;

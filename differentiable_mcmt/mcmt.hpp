@@ -44,7 +44,7 @@ namespace GEO {
         bool periodic_ = false;
 		std::vector<double> point_positions_;
 		std::vector<double> point_values_;
-
+        void save_face(std::ofstream &output_mesh, const std::vector<double> &points, int &vertex_count);
 		index_t nb_points() const {
 			return index_t(point_positions_.size() / 3);
 		}
