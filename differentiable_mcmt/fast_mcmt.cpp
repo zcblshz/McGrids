@@ -1,4 +1,4 @@
-#include "mcmt.hpp"
+#include "fast_mcmt.hpp"
 #include "kdtree.hpp"
 #include <tbb/tbb.h>
 
@@ -6,6 +6,7 @@ namespace GEO
 {
 	MCMT::MCMT()
 	{
+		GEO::initialize();
 		delaunay_ = new PeriodicDelaunay3d(periodic_, 1.0);
 		if (!periodic_)
 		{
@@ -18,6 +19,18 @@ namespace GEO
 		delete delaunay_;
 	}
 
+	std::vector<double> MCMT::get_grid_points()
+	{
+		std::vector<double> grid_points;
+		for (index_t v = 0; v < delaunay_->nb_vertices(); v++)
+		{
+			grid_points.push_back(delaunay_->vertex_ptr(v)[0]);
+			grid_points.push_back(delaunay_->vertex_ptr(v)[1]);
+			grid_points.push_back(delaunay_->vertex_ptr(v)[2]);
+		}
+		return grid_points;
+	}
+
 	void MCMT::add_points(int num_points, double *point_positions, double *point_values)
 	{
 		for (index_t i = 0; i < num_points; i++)
@@ -26,7 +39,7 @@ namespace GEO
 			point_positions_.push_back(point_positions[i * 3 + 1]);
 			point_positions_.push_back(point_positions[i * 3 + 2]);
 			point_values_.push_back(point_values[i]);
-			point_errors_.push_back(1/(abs(point_values[i])+1e-6));
+			point_errors_.push_back(1 / (abs(point_values[i]) + 1e-6));
 		}
 		delete delaunay_;
 		delaunay_ = new PeriodicDelaunay3d(periodic_, 1.0);
@@ -40,12 +53,12 @@ namespace GEO
 
 	std::vector<double> MCMT::interpolate(double *point1, double *point2, double sd1, double sd2)
 	{
-		double p1_x =  point1[0];
-		double p1_y =  point1[1];
-		double p1_z =  point1[2];
-		double p2_x =  point2[0];
-		double p2_y =  point2[1];
-		double p2_z =  point2[2];
+		double p1_x = point1[0];
+		double p1_y = point1[1];
+		double p1_z = point1[2];
+		double p2_x = point2[0];
+		double p2_y = point2[1];
+		double p2_z = point2[2];
 		double t = sd1 / ((sd1 - sd2));
 		return std::vector<double>{p1_x + t * (p2_x - p1_x), p1_y + t * (p2_y - p1_y), p1_z + t * (p2_z - p1_z)};
 	}
@@ -55,12 +68,13 @@ namespace GEO
 		// compute density
 		KDTree tree = KDTree(point_positions_.size() / 3, point_positions_.data(), point_errors_.data());
 		int current_num_points = 0;
-		int batch_size=4096;
+		int batch_size = 4096;
 		std::vector<double> sampled_points;
-		while(current_num_points < num_points){
+		while (current_num_points < num_points)
+		{
 			std::vector<double> new_points;
 			new_points.reserve(batch_size * 3);
-			for (int i = 0; i < batch_size*3; i++)
+			for (int i = 0; i < batch_size * 3; i++)
 			{
 				new_points.push_back(Numeric::random_float64());
 			}
@@ -79,11 +93,9 @@ namespace GEO
 						break;
 				}
 			}
-			
 		}
 		return sampled_points;
 	}
-
 
 	std::vector<double> MCMT::compute_face_mid_point(int num_points, const std::vector<double> &points)
 	{
@@ -109,18 +121,18 @@ namespace GEO
 
 		if (point_size == 3)
 		{
-			output_mesh << "v " << points[0*3] << " " << points[0*3+1] << " " << points[0*3+2] << "\n";
-			output_mesh << "v " << points[1*3] << " " << points[1*3+1] << " " << points[1*3+2] << "\n";
-			output_mesh << "v " << points[2*3] << " " << points[2*3+1] << " " << points[2*3+2] << "\n";
+			output_mesh << "v " << points[0 * 3] << " " << points[0 * 3 + 1] << " " << points[0 * 3 + 2] << "\n";
+			output_mesh << "v " << points[1 * 3] << " " << points[1 * 3 + 1] << " " << points[1 * 3 + 2] << "\n";
+			output_mesh << "v " << points[2 * 3] << " " << points[2 * 3 + 1] << " " << points[2 * 3 + 2] << "\n";
 			output_mesh << "f " << 1 + vertex_count << " " << 2 + vertex_count << " " << 3 + vertex_count << "\n";
 			vertex_count += 3;
 		}
 		if (point_size == 4)
 		{
-			output_mesh << "v " << points[0*3] << " " << points[0*3+1] << " " << points[0*3+2] << "\n";
-			output_mesh << "v " << points[1*3] << " " << points[1*3+1] << " " << points[1*3+2] << "\n";
-			output_mesh << "v " << points[2*3] << " " << points[2*3+1] << " " << points[2*3+2] << "\n";
-			output_mesh << "v " << points[3*3] << " " << points[3*3+1] << " " << points[3*3+2] << "\n";
+			output_mesh << "v " << points[0 * 3] << " " << points[0 * 3 + 1] << " " << points[0 * 3 + 2] << "\n";
+			output_mesh << "v " << points[1 * 3] << " " << points[1 * 3 + 1] << " " << points[1 * 3 + 2] << "\n";
+			output_mesh << "v " << points[2 * 3] << " " << points[2 * 3 + 1] << " " << points[2 * 3 + 2] << "\n";
+			output_mesh << "v " << points[3 * 3] << " " << points[3 * 3 + 1] << " " << points[3 * 3 + 2] << "\n";
 			output_mesh << "f " << 1 + vertex_count << " " << 2 + vertex_count << " " << 3 + vertex_count << "\n";
 			output_mesh << "f " << 2 + vertex_count << " " << 3 + vertex_count << " " << 4 + vertex_count << "\n";
 			output_mesh << "f " << 1 + vertex_count << " " << 2 + vertex_count << " " << 4 + vertex_count << "\n";
@@ -129,10 +141,11 @@ namespace GEO
 		}
 	}
 
-	void MCMT::save_triangle_soup(std::string file_name){
+	void MCMT::save_triangle_soup(std::string file_name)
+	{
 		std::ofstream output_mesh(file_name);
 		int vertex_count = 0;
-		for(index_t t =0; t < delaunay_->nb_finite_cells(); t++)
+		for (index_t t = 0; t < delaunay_->nb_finite_cells(); t++)
 		{
 			std::vector<int> tri2v;
 			for (index_t lv = 0; lv < 4; ++lv)
@@ -148,31 +161,35 @@ namespace GEO
 				intersection_points.insert(intersection_points.end(), interpolated_point.begin(), interpolated_point.end());
 			}
 			if (point_values_[tri2v[0]] * point_values_[tri2v[2]] < 0)
-			{   std::vector<double> interpolated_point = interpolate(point_positions_.data() + tri2v[0] * 3, point_positions_.data() + tri2v[2] * 3, point_values_[tri2v[0]], point_values_[tri2v[2]]);
+			{
+				std::vector<double> interpolated_point = interpolate(point_positions_.data() + tri2v[0] * 3, point_positions_.data() + tri2v[2] * 3, point_values_[tri2v[0]], point_values_[tri2v[2]]);
 				intersection_points.insert(intersection_points.end(), interpolated_point.begin(), interpolated_point.end());
 			}
 			if (point_values_[tri2v[0]] * point_values_[tri2v[3]] < 0)
-			{   std::vector<double> interpolated_point = interpolate(point_positions_.data() + tri2v[0] * 3, point_positions_.data() + tri2v[3] * 3, point_values_[tri2v[0]], point_values_[tri2v[3]]);
+			{
+				std::vector<double> interpolated_point = interpolate(point_positions_.data() + tri2v[0] * 3, point_positions_.data() + tri2v[3] * 3, point_values_[tri2v[0]], point_values_[tri2v[3]]);
 				intersection_points.insert(intersection_points.end(), interpolated_point.begin(), interpolated_point.end());
 			}
 			if (point_values_[tri2v[1]] * point_values_[tri2v[2]] < 0)
-			{   std::vector<double> interpolated_point = interpolate(point_positions_.data() + tri2v[1] * 3, point_positions_.data() + tri2v[2] * 3, point_values_[tri2v[1]], point_values_[tri2v[2]]);
+			{
+				std::vector<double> interpolated_point = interpolate(point_positions_.data() + tri2v[1] * 3, point_positions_.data() + tri2v[2] * 3, point_values_[tri2v[1]], point_values_[tri2v[2]]);
 				intersection_points.insert(intersection_points.end(), interpolated_point.begin(), interpolated_point.end());
 			}
 			if (point_values_[tri2v[1]] * point_values_[tri2v[3]] < 0)
-			{   std::vector<double> interpolated_point = interpolate(point_positions_.data() + tri2v[1] * 3, point_positions_.data() + tri2v[3] * 3, point_values_[tri2v[1]], point_values_[tri2v[3]]);
+			{
+				std::vector<double> interpolated_point = interpolate(point_positions_.data() + tri2v[1] * 3, point_positions_.data() + tri2v[3] * 3, point_values_[tri2v[1]], point_values_[tri2v[3]]);
 				intersection_points.insert(intersection_points.end(), interpolated_point.begin(), interpolated_point.end());
 			}
 			if (point_values_[tri2v[2]] * point_values_[tri2v[3]] < 0)
-			{   std::vector<double> interpolated_point = interpolate(point_positions_.data() + tri2v[2] * 3, point_positions_.data() + tri2v[3] * 3, point_values_[tri2v[2]], point_values_[tri2v[3]]);
+			{
+				std::vector<double> interpolated_point = interpolate(point_positions_.data() + tri2v[2] * 3, point_positions_.data() + tri2v[3] * 3, point_values_[tri2v[2]], point_values_[tri2v[3]]);
 				intersection_points.insert(intersection_points.end(), interpolated_point.begin(), interpolated_point.end());
 			}
 			if (intersection_points.size() != 0)
-			{ 
+			{
 				save_face(output_mesh, intersection_points, vertex_count);
 			}
-		} 
-
+		}
 	}
 
 	std::vector<double> MCMT::get_mid_points()
@@ -246,7 +263,6 @@ namespace GEO
 		}
 		C.compute_geometry();
 	}
-
 	std::vector<double> MCMT::lloyd_relaxation(double *relaxed_point_positions, int num_points, int num_iter)
 	{
 		int current_num_points = point_positions_.size() / 3;
@@ -260,31 +276,21 @@ namespace GEO
 		for (int i = 0; i < num_points * 3; i++)
 		{
 			new_points.push_back(relaxed_point_positions[i]);
-			// std::cout << "relaxed_point_positions: "<<relaxed_point_positions[i] << std::endl;
-
 		}
-		// std::cout << "number of new points: "<< new_points.size() / 3 << std::endl;
+		delete delaunay_;
+		delaunay_ = new PeriodicDelaunay3d(periodic_, 1.0);
+		if (!periodic_)
+		{
+			delaunay_->set_keeps_infinite(true);
+		}
+		delaunay_->set_vertices(new_points.size() / 3, new_points.data());
+		delaunay_->compute();
 		ConvexCell C;
 
 		for (int i = 0; i < num_iter; i++)
 		{
-			delete delaunay_;
-			delaunay_ = new PeriodicDelaunay3d(periodic_, 1.0);
-			if (!periodic_)
-			{
-				delaunay_->set_keeps_infinite(true);
-			}
-			delaunay_->set_vertices(new_points.size() / 3, new_points.data());
-			delaunay_->compute();
-
-			// std::cout << "====Size of current points: " << current_num_points << std::endl;
-			// std::cout << "Size of all points: " << new_points.size() / 3 << std::endl;
-
-			// std::cout << "Size of points: " << delaunay_->nb_vertices() << std::endl;
-			// std::cout << "Size of cells: " << delaunay_->nb_finite_cells() << std::endl;
-			std::vector<double> new_new_points;
-			new_new_points.reserve(new_points.size());
-			for (index_t v = 0; v <  delaunay_->nb_vertices(); v++)
+			std::vector<double> new_new_points(new_points.size());
+			for (index_t v = current_num_points; v < delaunay_->nb_vertices(); v++)
 			{
 				// std::cout << "V: " << v << std::endl;
 				get_cell(v, C);
@@ -294,7 +300,7 @@ namespace GEO
 				new_new_points[3 * v + 1] = g.y;
 				new_new_points[3 * v + 2] = g.z;
 			}
-			for (index_t v = 0; v < delaunay_->nb_vertices(); v++)
+			for (index_t v = current_num_points; v < delaunay_->nb_vertices(); v++)
 			{
 				if (new_new_points[v] < 0.0)
 				{
@@ -305,31 +311,26 @@ namespace GEO
 					new_new_points[v] -= 1.0;
 				}
 			}
-			for(int v=0; v<new_new_points.size(); v++){
-				new_points[v]= new_new_points[v];
-			}
-			// new_points.swap(new_new_points);
-
+			new_points.swap(new_new_points);
+			delaunay_->set_vertices(new_points.size() / 3, new_points.data());
+			delaunay_->compute();
 		}
 		std::vector<double> points_vec;
 		points_vec.reserve(num_points * 3);
-		// std::cout << "Size of current points: " << current_num_points << std::endl;
-		// std::cout << "Size of new_points: " << new_points.size()/3 << std::endl;
 
-		for (int i = current_num_points*3; i < current_num_points*3 + num_points*3; i++)
+		for (int i = current_num_points * 3; i < current_num_points * 3 + num_points * 3; i++)
 		{
 			points_vec.push_back(new_points[i]);
 		}
-		// std::cout << points_vec.size() << std::endl;
 		return points_vec;
 	}
-
-	void MCMT::output_grid_points(std::string filename){
+	void MCMT::output_grid_points(std::string filename)
+	{
 		std::ofstream outfile(filename);
-		for(int i=0; i<point_positions_.size()/3; i++){
-			outfile << "v " << point_positions_[i*3] << " " << point_positions_[i*3+1] << " " << point_positions_[i*3+2] << std::endl;
+		for (int i = 0; i < point_positions_.size() / 3; i++)
+		{
+			outfile << "v " << point_positions_[i * 3] << " " << point_positions_[i * 3 + 1] << " " << point_positions_[i * 3 + 2] << std::endl;
 		}
-
 	}
 
 }

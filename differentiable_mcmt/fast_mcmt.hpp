@@ -33,6 +33,7 @@ namespace GEO {
 
 		void add_points(int num_points, double* point_positions, double* point_values);
         std::vector<double> get_mid_points();
+        std::vector<double> get_grid_points();
         std::vector<double> sample_points(int num_samples);
         std::vector<double> lloyd_relaxation(double* point_positions, int num_points, int num_iter);
 		void save_triangle_soup(std::string filename);

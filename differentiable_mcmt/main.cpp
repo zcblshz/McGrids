@@ -1,4 +1,4 @@
-#include "mcmt.hpp"
+#include "fast_mcmt.hpp"
 #include "sdfs.hpp"
 
 int main(int argc, char **argv)
@@ -23,8 +23,6 @@ int main(int argc, char **argv)
             }
         }
     }
-
-    GEO::initialize();
 
     MCMT mcmt = MCMT();
     std::vector<double> point_values;
