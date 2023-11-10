@@ -32,11 +32,11 @@ namespace GEO {
 		~MCMT();
 
 		void add_points(int num_points, double* point_positions, double* point_values);
+		void add_mid_points(int num_points, double* point_positions, double* point_values);
         std::vector<double> get_mid_points();
         std::vector<double> get_grid_points();
         std::vector<double> sample_points(int num_samples);
         std::vector<double> lloyd_relaxation(double* point_positions, int num_points, int num_iter);
-		void save_triangle_soup(std::string filename);
         void output_grid_points(std::string filename);
         void save_triangle_mesh(std::string filename);
 
@@ -46,6 +46,7 @@ namespace GEO {
 		PeriodicDelaunay3d* delaunay_;
 		PeriodicDelaunay3d::IncidentTetrahedra W_;
         bool periodic_ = false;
+		int num_point_visited_ = 0;
 		std::vector<double> point_positions_;
 		std::vector<double> point_values_;
 		std::vector<double> point_errors_;

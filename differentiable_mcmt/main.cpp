@@ -45,7 +45,7 @@ int main(int argc, char **argv)
         // std::cout << "Sampling iter: " << i << std::endl;
     }
     mcmt.output_grid_points("step_1_points.obj");
-    mcmt.save_triangle_soup("step_1_mesh_lloyd.obj");
+    mcmt.save_triangle_mesh("step_1_mesh_lloyd.obj");
     for (int i = 0; i < 100; i++)
     {
         point_values.clear();
@@ -73,7 +73,7 @@ int main(int argc, char **argv)
         if (additional_points.size() == 0)
             break;
         mcmt.add_points(additional_points.size() / 3, additional_points.data(), additional_point_values.data());
-        mcmt.save_triangle_soup("step_2_mesh_" + std::to_string(i) + ".obj");
+        mcmt.save_triangle_mesh("step_2_mesh_" + std::to_string(i) + ".obj");
     }
 
     return 0;
