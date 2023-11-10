@@ -40,9 +40,9 @@ def armadillo_sdf(points):
 
 
 if __name__ == "__main__":
-    use_lloyd = False
+    use_lloyd = True
     sdf_function = lucy_sdf
-    threshold = 1e-4
+    threshold = 2 * 1e-4
     resolution = 5
     XX = np.linspace(0, 1, resolution)
     YY = np.linspace(0, 1, resolution)
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         counter += next_points.shape[0]
         if len(next_points) == 0:
             break
-        mcmt.add_points(next_points, mid_values[np.abs(mid_values) > threshold])
+        mcmt.add_mid_points(next_points, mid_values[np.abs(mid_values) > threshold])
     print(time.time() - start_time)
 
 
