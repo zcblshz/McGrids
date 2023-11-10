@@ -6,7 +6,11 @@ project(fastCVT LANGUAGES CXX CUDA)
 SET(SRCS 
 	main.cpp
 	mcmt.cpp
-	mcmt.hpp)
+	mcmt.hpp
+  kdtree.hpp
+  nanoflann.hpp
+  KDTreeVectorOfVectorsAdaptor.hpp
+  )
 add_executable(fastCVT ${SRCS})
  
 if(MSVC)

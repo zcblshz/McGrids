@@ -4,7 +4,7 @@
 int main(int argc, char **argv)
 {
     using namespace GEO;
-    double threshold = 1e-4;
+    double threshold = 1e-3;
     int constrain_res = 8;
     int num_constrain_points = constrain_res * constrain_res * constrain_res;
 
@@ -33,9 +33,21 @@ int main(int argc, char **argv)
         point_values.push_back(SDF::sphere_sdf(points[i * 3], points[i * 3 + 1], points[i * 3 + 2]));
     }
     mcmt.add_points(points.size() / 3, points.data(), point_values.data());
+    
+    for (int i=0; i<20; i++){
+        point_values.clear();
+        std::vector<double> sample_points = mcmt.sample_points(256);
+        // sample_points = mcmt.lloyd_relaxation(sample_points.data(), sample_points.size()/3, 1);
+        for (int i = 0; i < sample_points.size() / 3; i++)
+        {
+            point_values.push_back(SDF::sphere_sdf(sample_points[i * 3], sample_points[i * 3 + 1], sample_points[i * 3 + 2]));
+        }
+        mcmt.add_points(sample_points.size() / 3, sample_points.data(), point_values.data());
+        std::cout << "Sampling iter: " << i << std::endl;
+    }
     mcmt.output_grid_points("grid.obj");
     mcmt.save_triangle_soup("soup.obj");
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 100; i++)
     {
         point_values.clear();
 

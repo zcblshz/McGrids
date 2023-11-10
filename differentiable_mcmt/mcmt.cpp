@@ -1,4 +1,5 @@
 #include "mcmt.hpp"
+#include "kdtree.hpp"
 #include <tbb/tbb.h>
 
 namespace GEO
@@ -25,6 +26,7 @@ namespace GEO
 			point_positions_.push_back(point_positions[i * 3 + 1]);
 			point_positions_.push_back(point_positions[i * 3 + 2]);
 			point_values_.push_back(point_values[i]);
+			point_errors_.push_back(1/abs(point_values[i]));
 		}
 		delete delaunay_;
 		delaunay_ = new PeriodicDelaunay3d(periodic_, 1.0);
@@ -48,6 +50,41 @@ namespace GEO
 		return std::vector<double>{p1_x + t * (p2_x - p1_x), p1_y + t * (p2_y - p1_y), p1_z + t * (p2_z - p1_z)};
 	}
 
+	std::vector<double> MCMT::sample_points(int num_points)
+	{
+		// compute density
+		KDTree tree = KDTree(point_positions_.size() / 3, point_positions_.data(), point_errors_.data());
+		int current_num_points = 0;
+		int batch_size=4096;
+		std::vector<double> sampled_points;
+		while(current_num_points < num_points){
+			std::vector<double> new_points;
+			new_points.reserve(batch_size * 3);
+			for (int i = 0; i < batch_size*3; i++)
+			{
+				new_points.push_back(Numeric::random_float64());
+			}
+			std::vector<double> density = tree.compute_density(batch_size, new_points.data());
+			double max_density = *std::max_element(density.begin(), density.end());
+			for (int i = 0; i < batch_size; i++)
+			{
+				double threshold = Numeric::random_float64() * max_density;
+				if (density[i] > threshold)
+				{
+					sampled_points.push_back(new_points[i * 3]);
+					sampled_points.push_back(new_points[i * 3 + 1]);
+					sampled_points.push_back(new_points[i * 3 + 2]);
+					current_num_points++;
+					if (current_num_points == num_points)
+						break;
+				}
+			}
+			
+		}
+		return sampled_points;
+	}
+
+
 	std::vector<double> MCMT::compute_face_mid_point(int num_points, const std::vector<double> &points)
 	{
 		double mid_point_x = 0;
@@ -65,8 +102,6 @@ namespace GEO
 		mid_point_z /= num_points;
 		return std::vector<double>{mid_point_x, mid_point_y, mid_point_z};
 	}
-
-
 
 	void MCMT::save_face(std::ofstream &output_mesh, const std::vector<double> &points, int &vertex_count)
 	{
