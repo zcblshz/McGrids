@@ -4,8 +4,8 @@
 #include <set>
 #include <iostream>
 #include <vector>
+#include <tbb/tbb.h>
 #include "KDTreeVectorOfVectorsAdaptor.hpp"
-
 #define MEASUREMENTS 600
 #define CUT_MEASUREMENTS 100
 #define GB 1000000000

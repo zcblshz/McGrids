@@ -26,7 +26,7 @@ namespace GEO
 			point_positions_.push_back(point_positions[i * 3 + 1]);
 			point_positions_.push_back(point_positions[i * 3 + 2]);
 			point_values_.push_back(point_values[i]);
-			point_errors_.push_back(1/abs(point_values[i]));
+			point_errors_.push_back(1/(abs(point_values[i])+1e-6));
 		}
 		delete delaunay_;
 		delaunay_ = new PeriodicDelaunay3d(periodic_, 1.0);
@@ -234,7 +234,6 @@ namespace GEO
 
 	void MCMT::get_cell(index_t v, ConvexCell &C)
 	{
-		PeriodicDelaunay3d::IncidentTetrahedra W_;
 		delaunay_->copy_Laguerre_cell_from_Delaunay(v, C, W_);
 		if (!periodic_)
 		{
@@ -261,8 +260,10 @@ namespace GEO
 		for (int i = 0; i < num_points * 3; i++)
 		{
 			new_points.push_back(relaxed_point_positions[i]);
-		}
+			// std::cout << "relaxed_point_positions: "<<relaxed_point_positions[i] << std::endl;
 
+		}
+		// std::cout << "number of new points: "<< new_points.size() / 3 << std::endl;
 		ConvexCell C;
 
 		for (int i = 0; i < num_iter; i++)
@@ -276,33 +277,50 @@ namespace GEO
 			delaunay_->set_vertices(new_points.size() / 3, new_points.data());
 			delaunay_->compute();
 
-			std::cout << "Size of points: " << delaunay_->nb_finite_cells() << std::endl;
-			for (index_t v = current_num_points; v < new_points.size() / 3; v++)
+			// std::cout << "====Size of current points: " << current_num_points << std::endl;
+			// std::cout << "Size of all points: " << new_points.size() / 3 << std::endl;
+
+			// std::cout << "Size of points: " << delaunay_->nb_vertices() << std::endl;
+			// std::cout << "Size of cells: " << delaunay_->nb_finite_cells() << std::endl;
+			std::vector<double> new_new_points;
+			new_new_points.reserve(new_points.size());
+			for (index_t v = 0; v <  delaunay_->nb_vertices(); v++)
 			{
+				// std::cout << "V: " << v << std::endl;
 				get_cell(v, C);
 				vec3 g = C.barycenter();
-				new_points[3 * v] = g.x;
-				new_points[3 * v + 1] = g.y;
-				new_points[3 * v + 2] = g.z;
+				// std::cout << "g: " << g << std::endl;
+				new_new_points[3 * v] = g.x;
+				new_new_points[3 * v + 1] = g.y;
+				new_new_points[3 * v + 2] = g.z;
 			}
-			for (index_t v = current_num_points; v < new_points.size(); v++)
+			for (index_t v = 0; v < delaunay_->nb_vertices(); v++)
 			{
-				if (new_points[v] < 0.0)
+				if (new_new_points[v] < 0.0)
 				{
-					new_points[v] += 1.0;
+					new_new_points[v] += 1.0;
 				}
-				if (new_points[v] > 1.0)
+				if (new_new_points[v] > 1.0)
 				{
-					new_points[v] -= 1.0;
+					new_new_points[v] -= 1.0;
 				}
 			}
+			for(int v=0; v<new_new_points.size(); v++){
+				new_points[v]= new_new_points[v];
+			}
+			// new_points.swap(new_new_points);
+
 		}
 		std::vector<double> points_vec;
 		points_vec.reserve(num_points * 3);
-		for (int i = current_num_points*3; i < new_points.size(); i++)
+		// std::cout << "Size of current points: " << current_num_points << std::endl;
+		// std::cout << "Size of new_points: " << new_points.size()/3 << std::endl;
+
+		for (int i = current_num_points*3; i < current_num_points*3 + num_points*3; i++)
 		{
 			points_vec.push_back(new_points[i]);
 		}
+		// std::cout << points_vec.size() << std::endl;
 		return points_vec;
 	}
 

@@ -41,6 +41,7 @@ namespace GEO {
 	private:
 
 		PeriodicDelaunay3d* delaunay_;
+		PeriodicDelaunay3d::IncidentTetrahedra W_;
         bool periodic_ = false;
 		std::vector<double> point_positions_;
 		std::vector<double> point_values_;

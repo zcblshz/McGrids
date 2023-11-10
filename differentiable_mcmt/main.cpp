@@ -37,16 +37,17 @@ int main(int argc, char **argv)
     for (int i=0; i<20; i++){
         point_values.clear();
         std::vector<double> sample_points = mcmt.sample_points(256);
-        // sample_points = mcmt.lloyd_relaxation(sample_points.data(), sample_points.size()/3, 1);
+
+       std::vector<double> relaxed_sample_points = mcmt.lloyd_relaxation(sample_points.data(), sample_points.size()/3, 5);
         for (int i = 0; i < sample_points.size() / 3; i++)
         {
-            point_values.push_back(SDF::sdBox(sample_points[i * 3], sample_points[i * 3 + 1], sample_points[i * 3 + 2]));
+            point_values.push_back(SDF::sdBox(relaxed_sample_points[i * 3], relaxed_sample_points[i * 3 + 1], relaxed_sample_points[i * 3 + 2]));
         }
-        mcmt.add_points(sample_points.size() / 3, sample_points.data(), point_values.data());
-        std::cout << "Sampling iter: " << i << std::endl;
+        mcmt.add_points(relaxed_sample_points.size() / 3, relaxed_sample_points.data(), point_values.data());
+        // std::cout << "Sampling iter: " << i << std::endl;
     }
     mcmt.output_grid_points("step_1_points.obj");
-    mcmt.save_triangle_soup("step_1_mesh.obj");
+    mcmt.save_triangle_soup("step_1_mesh_lloyd.obj");
     for (int i = 0; i < 100; i++)
     {
         point_values.clear();
