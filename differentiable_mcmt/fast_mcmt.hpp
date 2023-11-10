@@ -38,6 +38,8 @@ namespace GEO {
         std::vector<double> lloyd_relaxation(double* point_positions, int num_points, int num_iter);
 		void save_triangle_soup(std::string filename);
         void output_grid_points(std::string filename);
+        void save_triangle_mesh(std::string filename);
+
 
 	private:
 

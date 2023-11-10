@@ -56,6 +56,12 @@ namespace mcmt
     mcmt.save_triangle_soup(filename);
   }
 
+  void output_triangle_mesh(std::string filename)
+  {
+    mcmt.save_triangle_mesh(filename);
+  }
+
+
   PYBIND11_MODULE(mcmt, m)
   {
 
@@ -71,6 +77,8 @@ namespace mcmt
           "get all mid points");
     m.def("output_triangle_soup", &output_triangle_soup,
           "output triangle soup");
+    m.def("output_triangle_mesh", &output_triangle_mesh,
+          "output triangle mesh");
   }
 
 }

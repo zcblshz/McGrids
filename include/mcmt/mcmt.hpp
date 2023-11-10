@@ -17,4 +17,4 @@ template <typename T> std::vector<T> make_vector(std::size_t size) {
   return v;
 }
 
-} // namespace pybind11numpyexample
+} 

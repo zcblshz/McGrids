@@ -68,22 +68,23 @@ if __name__ == "__main__":
     for i in tqdm.tqdm(range(100)):
         mid_points = mcmt.get_mid_points().reshape(-1, 3)
         mid_values = sdf_function(mid_points)
-        print(mid_values.shape)
+        # print(mid_values.shape)
         next_points = mid_points[np.abs(mid_values) > threshold]
-        print(next_points.shape)
+        # print(next_points.shape)
         counter += next_points.shape[0]
         if len(next_points) == 0:
             break
         mcmt.add_points(next_points, mid_values[np.abs(mid_values) > threshold])
     print(time.time() - start_time)
-    print(counter)
+
 
     # output
     # print(f"Total Query Number after mid point optimization: {num_sdf_query}")
     if use_lloyd:
-        mcmt.output_triangle_soup("example_lloyd.obj")
+        mcmt.output_triangle_mesh("example_lloyd.obj")
     else:
-        mcmt.output_triangle_soup("example.obj")
+        mcmt.output_triangle_mesh("example.obj")
+
 
 
     points = mcmt.get_grid_points().reshape(-1, 3)
