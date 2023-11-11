@@ -40,15 +40,21 @@ public:
         my_kd_tree_t tree(3, kdtree_point_positions, 10 /* max leaf */);
         tree.index->buildIndex();
         std::vector<double> densities;
-        for (int i = 0; i < num_points; i++)
-        {
-            nanoflann::KNNResultSet<double> resultSet(1);
-            std::vector<size_t> ret_indexes(1);
-            std::vector<double> out_dists_sqr(1);
-            resultSet.init(&ret_indexes[0], &out_dists_sqr[0]);
-            tree.index->findNeighbors(resultSet, point_positions + i * 3, nanoflann::SearchParameters(10));
-            densities.push_back(kdtree_point_values[ret_indexes[0]]);
-        }
+        densities.resize(num_points);
+        tbb::parallel_for(tbb::blocked_range<int>(0, num_points),
+                        [&](tbb::blocked_range<int> ti)
+                        {
+                            for(int i = ti.begin(); i < ti.end(); i++)
+                            {
+                                nanoflann::KNNResultSet<double> resultSet(1);
+                                std::vector<size_t> ret_indexes(1);
+                                std::vector<double> out_dists_sqr(1);
+                                resultSet.init(&ret_indexes[0], &out_dists_sqr[0]);
+                                tree.index->findNeighbors(resultSet, point_positions + i * 3, nanoflann::SearchParameters(10));
+                                densities[i] = kdtree_point_values[ret_indexes[0]];
+                            }
+                        });
+
         return densities;
     }
 
