@@ -22,7 +22,7 @@ def get_tets(model, threshold=1e-3, max_iter=10, device="cuda"):
     points = np.stack((X.flatten(), Y.flatten(), Z.flatten()), axis=-1)
     point_values = sdf_function(points, model, device=device)
     mcmt.add_points(points, point_values)
-    for i in range(10):
+    for i in range(4):
         sample_points = mcmt.sample_points(512).reshape(-1, 3)
         if use_lloyd:
             sample_points = mcmt.lloyd_relaxation(sample_points, 1).reshape(-1, 3)
@@ -38,5 +38,6 @@ def get_tets(model, threshold=1e-3, max_iter=10, device="cuda"):
     #     mcmt.add_mid_points(next_points, mid_values[np.abs(mid_values) > threshold])
 
     tet_verts = mcmt.get_grid_points().reshape(-1, 3) - 0.5
+    print(tet_verts.shape)
     tets = Delaunay(tet_verts).simplices
     return torch.tensor(tet_verts, dtype=torch.float32, device=device), torch.tensor(tets, dtype=torch.long, device=device)
