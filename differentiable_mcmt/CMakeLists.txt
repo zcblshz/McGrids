@@ -15,14 +15,17 @@ add_library(fast_mcmt STATIC ${SRCS})
 add_executable(fastCVT 	main.cpp sdfs.hpp)
  
 if(MSVC)
-  # #add ThirdPartyInclude
-  # list( APPEND ThirdPartIncludePath "D:/Projects/geogram/geogram/src/lib")
-  # list( APPEND ThirdPartIncludePath "D:/Projects/geogram/geogram/src/lib/geogram_gfx/third_party")
-  # target_include_directories(fastCVT PUBLIC ${ThirdPartIncludePath})
-  # #add ThirdPartylib
-  # list( APPEND ThirdPartLibPath "D:/Projects/geogram/geogram/build/lib/Release/geogram.lib")
-  # target_link_libraries(fastCVT PUBLIC ${ThirdPartLibPath})
-  # target_link_libraries(fastCVT PUBLIC ${ThirdPartLibPath}
+  #add ThirdPartyInclude
+  list( APPEND ThirdPartIncludePath "D:/Projects/geogram/geogram/src/lib")
+  list( APPEND ThirdPartIncludePath "D:/Projects/geogram/geogram/src/lib/geogram_gfx/third_party")
+  list( APPEND ThirdPartIncludePath "D:/Libary/oneTBB-master/oneTBB-master/include")
+  target_include_directories(fast_mcmt PUBLIC ${ThirdPartIncludePath})
+  target_include_directories(fast_mcmt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+  #add ThirdPartylib
+  list( APPEND ThirdPartLibPath "D:/Projects/geogram/geogram/build/lib/Release/geogram.lib")
+  list( APPEND ThirdPartLibPath "D:/Libary/oneTBB-master/oneTBB-master/build/msvc_19.16_cxx_64_md_release/tbb12.lib")
+  target_link_libraries(fast_mcmt PUBLIC ${ThirdPartLibPath})
+  target_link_libraries(fastCVT PUBLIC fast_mcmt)
 
 else()
   find_package(TBB REQUIRED)

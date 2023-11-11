@@ -608,4 +608,70 @@ namespace GEO
         }
     }
 
+	void MCMT::save_grid_mesh(std::string filename, float x_clip_plane)
+	{
+
+		std::vector<std::vector<double>> mesh_vertices;
+		std::vector<std::vector<int>> mesh_faces;
+
+		for (int i = 0; i < delaunay_->nb_vertices(); i++)
+		{
+			double x = delaunay_->vertex_ptr(i)[0];
+			double y = delaunay_->vertex_ptr(i)[1];
+			double z = delaunay_->vertex_ptr(i)[2];
+			mesh_vertices.push_back(std::vector<double>{x, y, z});
+		}
+
+		for (int i = 0; i < delaunay_->nb_finite_cells(); i++)
+		{
+			std::vector<int> v_indices;
+			bool flag = false;
+			for (index_t lv = 0; lv < 4; ++lv)
+			{
+				int v = delaunay_->cell_vertex(i, lv);
+				double x = delaunay_->vertex_ptr(v)[0];
+
+				if (x < x_clip_plane)
+				{
+					flag = true;
+					break;
+				}
+				v_indices.push_back(int(v));
+			}
+			if (flag)
+				continue;
+			mesh_faces.push_back(v_indices);
+		}
+
+		std::ofstream outfile(filename); // create a file named "example.txt"
+
+		if (outfile.is_open())
+		{
+			for (size_t k = 0; k < mesh_vertices.size(); ++k)
+			{
+				std::vector<double> site = mesh_vertices[k];
+				size_t n = site.size();
+				outfile << "v ";
+				for (size_t i = 0; i < site.size(); i++)
+				{
+					outfile << site[i] << " ";
+				}
+				outfile << " \n";
+			}
+
+			for (size_t j = 0; j < mesh_faces.size(); j++)
+			{
+				std::vector<int> vertices_idx = mesh_faces[j];
+
+				if (vertices_idx.size() == 4)
+				{
+					outfile << "f " << vertices_idx[0] + 1 << " " << vertices_idx[2] + 1 << " " << vertices_idx[1] + 1 << " \n";
+					outfile << "f " << vertices_idx[0] + 1 << " " << vertices_idx[3] + 1 << " " << vertices_idx[2] + 1 << " \n";
+					outfile << "f " << vertices_idx[0] + 1 << " " << vertices_idx[1] + 1 << " " << vertices_idx[3] + 1 << " \n";
+					outfile << "f " << vertices_idx[1] + 1 << " " << vertices_idx[2] + 1 << " " << vertices_idx[3] + 1 << " \n";
+				}
+			}
+		}
+	}
+
 }

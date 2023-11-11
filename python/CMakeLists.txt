@@ -1,15 +1,15 @@
 project(cmake_and_cuda LANGUAGES C CXX CUDA)
 
 find_package(pybind11 CONFIG REQUIRED)
-find_package(TBB REQUIRED)
 
 pybind11_add_module(mcmt_python mcmt.cpp)
 
 if(MSVC)
-    #add ThirdPartyInclude
-
+  #add ThirdPartyInclude
+  #find_package(TBB REQUIRED)
 
 else()
+  find_package(TBB REQUIRED)
   # target_include_directories(mcmt_python PUBLIC ${ThirdPartIncludePath} )
   # target_link_libraries(mcmt_python PUBLIC ${ThirdPartLibPath} )
   # target_link_libraries(mcmt_python PUBLIC ${ThirdPartLibPath} )

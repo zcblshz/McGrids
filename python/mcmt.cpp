@@ -71,6 +71,12 @@ namespace mcmt
     mcmt.save_triangle_mesh(filename);
   }
 
+  void output_grid_mesh(std::string filename, float x_clip_plane)
+  {
+	  mcmt.save_grid_mesh(filename, x_clip_plane);
+  }
+
+
 
   PYBIND11_MODULE(mcmt, m)
   {
@@ -89,6 +95,8 @@ namespace mcmt
           "get all mid points");
     m.def("output_triangle_mesh", &output_triangle_mesh,
           "output triangle mesh");
+	m.def("output_grid_mesh", &output_grid_mesh,
+		  "output grid mesh");
   }
 
 }

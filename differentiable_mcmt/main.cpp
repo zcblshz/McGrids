@@ -36,7 +36,7 @@ int main(int argc, char **argv)
         point_values.clear();
         std::vector<double> sample_points = mcmt.sample_points(256);
 
-       std::vector<double> relaxed_sample_points = mcmt.lloyd_relaxation(sample_points.data(), sample_points.size()/3, 5);
+       std::vector<double> relaxed_sample_points = mcmt.lloyd_relaxation(sample_points.data(), sample_points.size()/3, 1);
         for (int i = 0; i < sample_points.size() / 3; i++)
         {
             point_values.push_back(SDF::sdBox(relaxed_sample_points[i * 3], relaxed_sample_points[i * 3 + 1], relaxed_sample_points[i * 3 + 2]));
@@ -46,6 +46,8 @@ int main(int argc, char **argv)
     }
     mcmt.output_grid_points("step_1_points.obj");
     mcmt.save_triangle_mesh("step_1_mesh_lloyd.obj");
+	mcmt.save_grid_mesh("tet_mesh.obj", 0.5);
+
     for (int i = 0; i < 100; i++)
     {
         point_values.clear();

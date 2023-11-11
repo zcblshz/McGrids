@@ -39,6 +39,7 @@ namespace GEO {
         std::vector<double> lloyd_relaxation(double* point_positions, int num_points, int num_iter);
         void output_grid_points(std::string filename);
         void save_triangle_mesh(std::string filename);
+		void save_grid_mesh(std::string filename, float x_clip_plane);
 
 
 	private:
