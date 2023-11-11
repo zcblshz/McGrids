@@ -19,6 +19,22 @@ namespace GEO
         delete delaunay_;
     }
 
+	void MCMT::clear()
+	{
+		delete delaunay_;
+		num_point_visited_ = 0;
+		point_positions_.clear();
+		point_values_.clear();
+		point_errors_.clear();
+
+		// create new delaunay
+		delaunay_ = new PeriodicDelaunay3d(periodic_, 1.0);
+		if (!periodic_)
+		{
+			delaunay_->set_keeps_infinite(true);
+		}
+	}
+
     std::vector<double> MCMT::get_grid_points()
     {
         std::vector<double> grid_points;
@@ -673,5 +689,6 @@ namespace GEO
 			}
 		}
 	}
+
 
 }

@@ -31,6 +31,8 @@ namespace GEO {
 		MCMT();
 		~MCMT();
 
+		void clear();
+
 		void add_points(int num_points, double* point_positions, double* point_values);
 		void add_mid_points(int num_points, double* point_positions, double* point_values);
         std::vector<double> get_mid_points();
@@ -40,7 +42,6 @@ namespace GEO {
         void output_grid_points(std::string filename);
         void save_triangle_mesh(std::string filename);
 		void save_grid_mesh(std::string filename, float x_clip_plane);
-
 
 	private:
 

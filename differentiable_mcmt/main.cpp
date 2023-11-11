@@ -25,6 +25,7 @@ int main(int argc, char **argv)
     }
 
     MCMT mcmt = MCMT();
+
     std::vector<double> point_values;
     for (int i = 0; i < points.size() / 3; i++)
     {
@@ -47,6 +48,7 @@ int main(int argc, char **argv)
     mcmt.output_grid_points("step_1_points.obj");
     mcmt.save_triangle_mesh("step_1_mesh_lloyd.obj");
 	mcmt.save_grid_mesh("tet_mesh.obj", 0.5);
+
 
     for (int i = 0; i < 100; i++)
     {
@@ -77,6 +79,9 @@ int main(int argc, char **argv)
         mcmt.add_points(additional_points.size() / 3, additional_points.data(), additional_point_values.data());
         mcmt.save_triangle_mesh("step_2_mesh_" + std::to_string(i) + ".obj");
     }
+
+	mcmt.clear();
+
 
     return 0;
 }

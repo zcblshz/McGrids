@@ -76,6 +76,10 @@ namespace mcmt
 	  mcmt.save_grid_mesh(filename, x_clip_plane);
   }
 
+  void clear_mcmt()
+  {
+	  mcmt.clear();
+  }
 
 
   PYBIND11_MODULE(mcmt, m)
@@ -97,6 +101,8 @@ namespace mcmt
           "output triangle mesh");
 	m.def("output_grid_mesh", &output_grid_mesh,
 		  "output grid mesh");
+	m.def("clear_mcmt", &clear_mcmt,
+		  "clear");
   }
 
 }
