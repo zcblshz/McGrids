@@ -47,6 +47,24 @@ namespace GEO
         return grid_points;
     }
 
+
+    std::vector<int> MCMT::get_grids()
+    {
+        std::vector<int> v_indices;
+
+		for (int i = 0; i < delaunay_->nb_finite_cells(); i++)
+		{
+			for (index_t lv = 0; lv < 4; ++lv)
+			{
+				int v = delaunay_->cell_vertex(i, lv);
+				double x = delaunay_->vertex_ptr(v)[0];
+				v_indices.push_back(int(v));
+			}
+		}
+        return v_indices;
+    }
+
+
     void MCMT::add_points(int num_points, double *point_positions, double *point_values)
     {
         num_point_visited_ = 0;
@@ -99,10 +117,14 @@ namespace GEO
         double p2_y = point2[1];
         double p2_z = point2[2];
         double t = sd1 / ((sd1 - sd2));
+        if(abs(sd1-sd2)<1e-6){
+            std::cout << "WARNING! SD1 == SD2" << std::endl;
+            t = 0.5;
+        }
         return std::vector<double>{p1_x + t * (p2_x - p1_x), p1_y + t * (p2_y - p1_y), p1_z + t * (p2_z - p1_z)};
     }
 
-    std::vector<double> MCMT::sample_points(int num_points)
+    std::vector<double> MCMT::sample_points_rejection(int num_points, double min_bound, double max_bound)
     {
         // compute density
         KDTree tree = KDTree(point_positions_.size() / 3, point_positions_.data(), point_errors_.data());
@@ -115,7 +137,7 @@ namespace GEO
             new_points.reserve(batch_size * 3);
             for (int i = 0; i < batch_size * 3; i++)
             {
-                new_points.push_back(Numeric::random_float64());
+                new_points.push_back(Numeric::random_float64() * (max_bound - min_bound) + min_bound);
             }
             std::vector<double> density = tree.compute_density(batch_size, new_points.data());
             double max_density = *std::max_element(density.begin(), density.end());
@@ -135,6 +157,220 @@ namespace GEO
         }
         return sampled_points;
     }
+
+    double MCMT::tetrahedronVolume(const std::vector<double>& coordinates) {
+        // Check if there are enough coordinates
+        if (coordinates.size() != 12) {
+            std::cerr << "Error: Insufficient coordinates provided." << std::endl;
+            return 0.0;  // Return an appropriate value
+        }
+
+        // Extract coordinates of points A, B, C, and D
+        double Ax = coordinates[0], Ay = coordinates[1], Az = coordinates[2];
+        double Bx = coordinates[3], By = coordinates[4], Bz = coordinates[5];
+        double Cx = coordinates[6], Cy = coordinates[7], Cz = coordinates[8];
+        double Dx = coordinates[9], Dy = coordinates[10], Dz = coordinates[11];
+
+        // Vector from A to B
+        double ABx = Bx - Ax, ABy = By - Ay, ABz = Bz - Az;
+
+        // Vector from A to C
+        double ACx = Cx - Ax, ACy = Cy - Ay, ACz = Cz - Az;
+
+        // Vector from A to D
+        double ADx = Dx - Ax, ADy = Dy - Ay, ADz = Dz - Az;
+
+        // Cross product of AC and AD
+        double crossProduct_i = ACy * ADz - ACz * ADy;
+        double crossProduct_j = ACz * ADx - ACx * ADz;
+        double crossProduct_k = ACx * ADy - ACy * ADx;
+
+        // Dot product of AB and the cross product of AC and AD
+        double dotProduct = ABx * crossProduct_i + ABy * crossProduct_j + ABz * crossProduct_k;
+
+        // Volume calculation
+        double volume = std::abs(dotProduct) / 6.0;
+
+        return volume;
+    }
+
+     std::vector<double> MCMT::compute_tet_error()
+    {
+        std::vector<double> tet_errors;
+        tet_errors.resize(delaunay_->nb_finite_cells());
+
+        tbb::parallel_for(tbb::blocked_range<int>(0, delaunay_->nb_finite_cells()),
+                          [&](tbb::blocked_range<int> ti)
+                          {
+                            for (int i = ti.begin(); i < ti.end(); i++)
+                            {
+                                double tet_density = 0;
+                                std::vector<double> point_coordinates;
+
+                                for (index_t lv = 0; lv < 4; ++lv)
+                                {
+                                    int v = delaunay_->cell_vertex(i, lv);
+                                    tet_density += point_errors_[v];
+                                    for(int c=0; c<3; c++){
+                                        point_coordinates.push_back(point_positions_[v*3+c]);
+                                    }
+                                }
+                                tet_errors[i] = tet_density * tetrahedronVolume(point_coordinates);
+                            }
+                          });
+        return tet_errors;
+    }
+
+
+    
+    int findBounds(const std::vector<double>& vec, float x) {
+        int low = 0;
+        int high = vec.size() - 1;
+
+        while (low < high) {
+            int mid = (low + high) / 2;
+
+            if (vec[mid] < x) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }
+        }
+
+        if (low > 0 && std::abs(vec[low - 1] - x) < std::abs(vec[low] - x)) {
+            return low-1;
+        } else {
+            return low;
+        }
+    }
+
+    std::vector<double> MCMT::sample_tet(std::vector<int> vertex_indices){
+        double s = Numeric::random_float64();
+        double t = Numeric::random_float64();
+        double u = Numeric::random_float64();
+        if(s+t>1.0){
+            s = 1.0 - s;
+            t = 1.0 - t;
+        }
+        if(t+u>1.0){
+            double tmp = u;
+            u = 1.0 - s - t;
+            t = 1.0 - tmp;
+        }
+        else if(s+t+u>1.0){
+            double tmp = u;
+            u = s + t + u - 1.0;
+            s = 1 - t - tmp;
+        }
+        double a=1-s-t-u;
+        a *= point_errors_[vertex_indices[0]];
+        s *= point_errors_[vertex_indices[1]];
+        t *= point_errors_[vertex_indices[2]];
+        u *= point_errors_[vertex_indices[3]];
+        double total = a+s+t+u;
+        a = a/total;
+        s = s/total;
+        t = t/total;
+        u = u/total;
+
+        double x = a * point_positions_[vertex_indices[0]*3] + s * point_positions_[vertex_indices[1]*3] + t * point_positions_[vertex_indices[2]*3] + u * point_positions_[vertex_indices[3]*3];
+        double y = a * point_positions_[vertex_indices[0]*3+1] + s * point_positions_[vertex_indices[1]*3+1] + t * point_positions_[vertex_indices[2]*3+1] + u * point_positions_[vertex_indices[3]*3+1];
+        double z = a * point_positions_[vertex_indices[0]*3+2] + s * point_positions_[vertex_indices[1]*3+2] + t * point_positions_[vertex_indices[2]*3+2] + u * point_positions_[vertex_indices[3]*3+2];
+
+        return std::vector<double>{x, y, z};
+    }
+
+    std::vector<double> MCMT::sample_points(int num_points)
+    {
+        std::vector<double> tet_density = compute_tet_error();
+        std::cout << "tet_density size: " << tet_density.size() << std::endl;
+        std::cout << "nb finite size: " << delaunay_->nb_finite_cells() << std::endl;
+
+        double tet_density_sum = std::accumulate(tet_density.begin(), tet_density.end(), 0.0);
+
+        tbb::parallel_for(tbb::blocked_range<int>(0, tet_density.size()),
+                          [&](tbb::blocked_range<int> ti)
+                          {
+                            for (int i = ti.begin(); i < ti.end(); i++)
+                            {
+                                tet_density[i] /= tet_density_sum;
+                            }
+                          });
+        std::cout << "1: " << std::endl;
+        
+        const int const_num_points = num_points;
+
+        std::vector<double> cumsum;
+        double current_sum = 0;
+        for(int i=0; i<tet_density.size(); i++){
+            current_sum += tet_density[i];
+            cumsum.push_back(current_sum);
+        }
+        tbb::concurrent_vector<double> sample_points;
+
+        for(int i =0; i< const_num_points*3; i++){
+            sample_points.push_back(0);
+        }
+        std::cout << "2: " << std::endl;
+        // tbb::parallel_for(tbb::blocked_range<int>(0, const_num_points),
+        //                   [&](tbb::blocked_range<int> ti)
+        //                   {
+        //                     for(int i = ti.begin(); i < ti.end(); i++){
+        //                         // int tet_index = findBounds(cumsum, Numeric::random_float64());
+        //                         auto upper = std::upper_bound(cumsum.begin(), cumsum.end(), Numeric::random_float64());
+        //                         int tet_index = std::distance(cumsum.begin(), upper);
+        //                         std::vector<int> vertex_indices;
+        //                         vertex_indices.resize(4);
+        //                         for (index_t lv = 0; lv < 4; ++lv)
+        //                         {
+        //                             int v = delaunay_->cell_vertex(tet_index, lv);
+        //                             if(v>= point_errors_.size() || v<0){
+        //                                 std::cout << "tet_index: " << tet_index << std::endl;
+        //                             }
+        //                             vertex_indices[lv] = int(v);
+        //                         }
+        //                         std::vector<double> sampled_point = sample_tet(vertex_indices);
+        //                         if(i>=const_num_points||i<0){
+        //                             std::cout << "****************************" << std::endl;
+        //                         }
+        //                         sample_points[i*3] = sampled_point[0];
+        //                         sample_points[i*3+1] = sampled_point[1];
+        //                         sample_points[i*3+2] = sampled_point[2];
+        //                         // sample_points.push_back(sampled_point[0]);
+        //                         // sample_points.push_back(sampled_point[1]);
+        //                         // sample_points.push_back(sampled_point[2]);
+        //                     }
+        //                   });
+
+                            for(int i = 0; i < num_points; i++){
+                                auto upper = std::upper_bound(cumsum.begin(), cumsum.end(), Numeric::random_float64());
+                                int tet_index = std::distance(cumsum.begin(), upper);
+                                std::vector<int> vertex_indices;
+                                for (index_t lv = 0; lv < 4; ++lv)
+                                {
+                                    int v = delaunay_->cell_vertex(tet_index, lv);
+                                    vertex_indices.push_back(int(v));
+                                }
+                                std::vector<double> sampled_point = sample_tet(vertex_indices);
+                                sample_points[i*3] = sampled_point[0];
+                                sample_points[i*3+1] = sampled_point[1];
+                                sample_points[i*3+2] = sampled_point[2];
+                                // sample_points.push_back(sampled_point[0]);
+                                // sample_points.push_back(sampled_point[1]);
+                                // sample_points.push_back(sampled_point[2]);
+                            }
+        std::cout << "3: " << std::endl;
+        std::vector<double> new_points;
+        new_points.reserve(sample_points.size());
+        for (int i = 0; i < sample_points.size(); i++)
+        {
+            new_points.push_back(sample_points[i]);
+        }
+        return new_points;
+        // return sample_points;
+
+    }
+
 
     std::vector<double> MCMT::compute_face_mid_point(int num_points, const std::vector<double> &points)
     {
@@ -188,6 +424,19 @@ namespace GEO
                                 continue;
                             }
 
+                            std::vector<double> point_coordinates;
+
+                                for (index_t lv = 0; lv < 4; ++lv)
+                                {
+                                    int v = delaunay_->cell_vertex(i, lv);
+                                    for(int c=0; c<3; c++){
+                                        point_coordinates.push_back(point_positions_[v*3+c]);
+                                    }
+                                }
+                            double volume =  tetrahedronVolume(point_coordinates);
+                            // if(volume < 1e-9){
+                            //     std::cout << "WARNING! Volume is too small!" << std::endl;
+                            // }
 							  std::vector<double> intersection_points;
 							  if (point_values_[tri2v[0]] * point_values_[tri2v[1]] < 0)
 							  {
@@ -230,21 +479,21 @@ namespace GEO
         return new_points;
     }
 
-    void MCMT::get_cell(index_t v, ConvexCell &C)
+    void MCMT::get_cell(index_t v, ConvexCell &C, double min_bound, double max_bound)
     {
         delaunay_->copy_Laguerre_cell_from_Delaunay(v, C, W_);
         if (!periodic_)
         {
-            C.clip_by_plane(vec4(1.0, 0.0, 0.0, 0.0));
-            C.clip_by_plane(vec4(-1.0, 0.0, 0.0, 1.0));
-            C.clip_by_plane(vec4(0.0, 1.0, 0.0, 0.0));
-            C.clip_by_plane(vec4(0.0, -1.0, 0.0, 1.0));
-            C.clip_by_plane(vec4(0.0, 0.0, 1.0, 0.0));
-            C.clip_by_plane(vec4(0.0, 0.0, -1.0, 1.0));
+            C.clip_by_plane(vec4(1.0, 0.0, 0.0, max_bound));
+            C.clip_by_plane(vec4(-1.0, 0.0, 0.0, -min_bound));
+            C.clip_by_plane(vec4(0.0, 1.0, 0.0, max_bound));
+            C.clip_by_plane(vec4(0.0, -1.0, 0.0, -min_bound));
+            C.clip_by_plane(vec4(0.0, 0.0, 1.0, max_bound));
+            C.clip_by_plane(vec4(0.0, 0.0, -1.0, -min_bound));
         }
         C.compute_geometry();
     }
-    std::vector<double> MCMT::lloyd_relaxation(double *relaxed_point_positions, int num_points, int num_iter)
+    std::vector<double> MCMT::lloyd_relaxation(double *relaxed_point_positions, int num_points, int num_iter, double min_bound, double max_bound)
     {
         int current_num_points = point_positions_.size() / 3;
         // copy point_positions_ to new_points
@@ -274,7 +523,7 @@ namespace GEO
             for (index_t v = current_num_points; v < delaunay_->nb_vertices(); v++)
             {
                 // std::cout << "V: " << v << std::endl;
-                get_cell(v, C);
+                get_cell(v, C, min_bound, max_bound);
                 vec3 g = C.barycenter();
                 // std::cout << "g: " << g << std::endl;
                 new_new_points[3 * v] = g.x;
@@ -283,13 +532,13 @@ namespace GEO
             }
             for (index_t v = current_num_points; v < delaunay_->nb_vertices(); v++)
             {
-                if (new_new_points[v] < 0.0)
+                if (new_new_points[v] < min_bound)
                 {
-                    new_new_points[v] += 1.0;
+                    new_new_points[v] += (max_bound-min_bound);
                 }
-                if (new_new_points[v] > 1.0)
+                if (new_new_points[v] > max_bound)
                 {
-                    new_new_points[v] -= 1.0;
+                    new_new_points[v] -= (max_bound-min_bound);
                 }
             }
             new_points.swap(new_new_points);
@@ -324,7 +573,6 @@ namespace GEO
         int v_counter = 0;
         std::vector<int> intersection_cell;
 
-        std::cout << delaunay_->nb_finite_cells() << std::endl;
         for (int i = 0; i < delaunay_->nb_finite_cells(); i++)
         {
             std::vector<int> v_indices;
