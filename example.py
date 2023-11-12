@@ -24,7 +24,7 @@ def lucy_sdf(points):
     global num_sdf_query
     num_sdf_query += points.shape[0]
     points = points - 0.5
-    mesh_name = "lucy_watertight.ply"
+    mesh_name = "./assets/lucy_watertight.ply"
     sdf = True
     implicite_function = MeshSDF(mesh_name,true_sdf=sdf)
     return implicite_function(points)
