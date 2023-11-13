@@ -56,7 +56,7 @@ namespace mcmt
     py::buffer_info point_positions_buffer = point_positions.request();
     double *point_positions_prt = (double *)point_positions_buffer.ptr;
     int num_points = point_positions_buffer.shape[0];
-    std::vector<double> new_samples = mcmt.lloyd_relaxation(point_positions_prt, num_points, num_iter, min_value, max_value);
+    std::vector<double> new_samples = mcmt.lloyd_relaxation(point_positions_prt, num_points, num_iter);
     return py::array_t<double>(new_samples.size(), new_samples.data());
   }
 

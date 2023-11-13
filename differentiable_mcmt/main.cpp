@@ -17,9 +17,13 @@ int main(int argc, char **argv)
         {
             for (int k = 0; k < constrain_res; k++)
             {
-                points.push_back((1. / double(constrain_res - 1)) * i);
-                points.push_back((1. / double(constrain_res - 1)) * j);
-                points.push_back((1. / double(constrain_res - 1)) * k);
+                points.push_back(((1. / double(constrain_res - 1)) * i - 0.5)*2);
+                points.push_back(((1. / double(constrain_res - 1)) * j - 0.5)*2);
+                points.push_back(((1. / double(constrain_res - 1)) * k - 0.5)*2);
+                // points.push_back(Numeric::random_float64() * 2.0 - 1.0);
+                // points.push_back(Numeric::random_float64() * 2.0 - 1.0);
+                // points.push_back(Numeric::random_float64() * 2.0 - 1.0);
+
             }
         }
     }
@@ -32,6 +36,19 @@ int main(int argc, char **argv)
         point_values.push_back(SDF::sphere_sdf(points[i * 3], points[i * 3 + 1], points[i * 3 + 2]));
     }
     mcmt.add_points(points.size() / 3, points.data(), point_values.data());
+
+    for(int i=0; i<100; i++){
+        std::vector<double> sample_points = mcmt.sample_points_voronoi(256);
+        point_values.clear();
+        for (int i = 0; i < sample_points.size() / 3; i++)
+        {
+            point_values.push_back(SDF::sphere_sdf(sample_points[i * 3], sample_points[i * 3 + 1], sample_points[i * 3 + 2]));
+        }
+        mcmt.add_points(sample_points.size() / 3, sample_points.data(), point_values.data());
+    }
+
+    mcmt.output_grid_points("grid.obj");
+    exit(0);
 
     for (int i=0; i<10; i++){
         point_values.clear();
