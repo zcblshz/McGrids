@@ -96,7 +96,6 @@ namespace GEO
             }
         }
 
-
         for (int i = current_num_points; i < point_positions_.size() / 3; i++)
         {
             ConvexCell C;
@@ -110,26 +109,15 @@ namespace GEO
             delaunay_->get_incident_tets(i, W_);
             for (auto it = W_.begin(); it != W_.end(); it++)
             {
-                // std::cout << "====================" << std::endl;
-
                 for (int lv = 0; lv < 4; lv++)
                 {
                     int point_id = delaunay_->cell_vertex(*it, lv);
-                    // if (point_id > volume_changed_.size())
-                    // {
-                    //     std::cout << "point_id: " << point_id << std::endl;
-                    //     std::cout << "volume_changed_.size(): " << volume_changed_.size() << std::endl;
-                    //     std::cout << "Point.size(): " << point_positions_.size() / 3 << std::endl;
-                    // }
-                    if (point_id == -1)
+                    if (point_id == -1 || point_id == i)
                         continue;
                     volume_changed_[point_id] = true;
                 }
             }
         }
-
-        // std::cout << "nb vertices: " << delaunay_->nb_vertices() << std::endl;
-        // std::cout << "nb point_volumes_: " << point_volumes_.size() << std::endl;
 
         for (int i = 0; i < point_positions_.size() / 3; i++)
         {
@@ -154,6 +142,7 @@ namespace GEO
             point_values_.push_back(point_values[i]);
             point_errors_.push_back(1 / (abs(point_values[i]) + 1e-6));
         }
+
         delete delaunay_;
         delaunay_ = new PeriodicDelaunay3d(periodic_, 1.0);
         if (!periodic_)
@@ -431,8 +420,6 @@ namespace GEO
     std::vector<double> MCMT::sample_points_voronoi(const int num_points)
     {
         std::vector<double> voronoi_density = compute_voronoi_error();
-        // std::cout << "voro_density size: " << voronoi_density.size() << std::endl;
-        // std::cout << "nb vertices size: " << delaunay_->nb_vertices() << std::endl;
 
         double voronoi_density_sum = std::accumulate(voronoi_density.begin(), voronoi_density.end(), 0.0);
 
@@ -514,41 +501,60 @@ namespace GEO
 
     std::vector<double> MCMT::get_mid_points()
     {
-        // std::cout << "num_point_visited_: " << num_point_visited_ << std::endl;
-        // std::cout << "Total num points: " << point_positions_.size() / 3 << std::endl;
-        // std::cout << "Get 5184 " << std::endl;
-
-        // delaunay_->get_incident_tets(5184, W_);
-
-        // delaunay_->get_incident_tets(5184, W_);
-        // exit(0);
         tbb::concurrent_set<size_t> new_cells;
-        std::cout << "num_point_visited2_: " << num_point_visited_ << std::endl;
-        for (int i = num_point_visited_; i < point_positions_.size()/3 - 1; i++)
+        std::cout << "nb_finite_cells: " << delaunay_->nb_finite_cells() << std::endl;
+        // if there is a bug, roll back...
+        if (delaunay_->nb_finite_cells() == 0)
         {
-            std::cout << "Before" << std::endl;
-            std::cout << "i: " << i << std::endl;
-            std::cout << "nb_finite_cells: " << delaunay_->nb_finite_cells() << std::endl;
-            std::cout << "points: " << point_positions_.size()/3 << std::endl;
-            std::cout << "nb_vertices: " << delaunay_->nb_vertices() << std::endl;
+            point_positions_ = std::vector<double>(point_positions_.begin(), point_positions_.begin() + num_point_visited_ * 3);
+            point_values_ = std::vector<double>(point_values_.begin(), point_values_.begin() + num_point_visited_);
+            point_errors_ = std::vector<double>(point_errors_.begin(), point_errors_.begin() + num_point_visited_);
 
-
-            // segmenation fault is caused by the following line
+            delete delaunay_;
+            delaunay_ = new PeriodicDelaunay3d(periodic_, 1.0);
+            if (!periodic_)
+            {
+                delaunay_->set_keeps_infinite(true);
+            }
+            delaunay_->set_vertices(point_positions_.size() / 3, point_positions_.data());
+            delaunay_->compute();
+            return std::vector<double>{};
+        }
+        for (int i = num_point_visited_; i < point_positions_.size() / 3 - 1; i++)
+        {
             delaunay_->get_incident_tets(i, W_);
-            std::cout << "After" << std::endl;
-
-            for(auto it=W_.begin(); it!=W_.end(); it++){
-                if(*it < delaunay_->nb_finite_cells() && *it >= 0){
-                    new_cells.insert(*it);
+            for (auto it = W_.begin(); it != W_.end(); it++)
+            {
+                if (*it < delaunay_->nb_finite_cells() && *it >= 0)
+                {
+                    bool skip = false;
+                    for (int lv = 0; lv < 4; lv++)
+                    {
+                        int v = delaunay_->cell_vertex(*it, lv);
+                        if (v == -1)
+                        {
+                            skip = true;
+                        }
+                        if (point_positions_[v * 3] - min_bound < 1e-6 || max_bound - point_positions_[v * 3] < 1e-6)
+                        {
+                            skip = true;
+                        }
+                        if (point_positions_[v * 3 + 1] - min_bound < 1e-6 || max_bound - point_positions_[v * 3 + 1] < 1e-6)
+                        {
+                            skip = true;
+                        }
+                        if (point_positions_[v * 3 + 2] - min_bound < 1e-6 || max_bound - point_positions_[v * 3 + 2] < 1e-6)
+                        {
+                            skip = true;
+                        }
+                    }
+                    if (!skip)
+                    {
+                        new_cells.insert(*it);
+                    }
                 }
-                // else{
-                //     std::cout << "WARNING! Cell index out of range!" << std::endl;
-                //     std::cout << "cell index: " << *it << std::endl;
-                // }
-
             }
         }
-        std::cout << "num_point_visited123_: " << num_point_visited_ << std::endl;
 
         std::vector<int> new_cell_ids(new_cells.begin(), new_cells.end());
         tbb::concurrent_vector<std::vector<double>> sample_points;
@@ -575,19 +581,6 @@ namespace GEO
                                 continue;
                             }
 
-                            std::vector<double> point_coordinates;
-
-                                for (index_t lv = 0; lv < 4; ++lv)
-                                {
-                                    int v = delaunay_->cell_vertex(i, lv);
-                                    for(int c=0; c<3; c++){
-                                        point_coordinates.push_back(point_positions_[v*3+c]);
-                                    }
-                                }
-                            double volume =  tetrahedronVolume(point_coordinates);
-                            // if(volume < 1e-9){
-                            //     std::cout << "WARNING! Volume is too small!" << std::endl;
-                            // }
 							  std::vector<double> intersection_points;
 							  if (point_values_[tri2v[0]] * point_values_[tri2v[1]] < 0)
 							  {
@@ -617,7 +610,38 @@ namespace GEO
 							  if (intersection_points.size() != 0)
 							  { 
 								std::vector<double> mid_point = compute_face_mid_point(intersection_points.size()/3, intersection_points);
-							  	sample_points.push_back(mid_point);
+
+                                    bool skip_mid_point=false;
+                                    std::vector<double> point_coordinates;
+                                    double threshold = 1e-12;
+
+
+                                    std::vector<std::vector<int>> tet_indices{{0,1,2},{0,2,3},{0,1,3},{1,2,3}};
+
+                                    for(auto tet_index: tet_indices){
+
+                                        point_coordinates.clear();
+                                        for (int i:tet_index){
+                                            point_coordinates.push_back(point_positions_[tri2v[i]*3]);
+                                            point_coordinates.push_back(point_positions_[tri2v[i]*3+1]);
+                                            point_coordinates.push_back(point_positions_[tri2v[i]*3+2]);
+
+                                        }
+                                        point_coordinates.push_back(mid_point[0]);
+                                        point_coordinates.push_back(mid_point[1]);
+                                        point_coordinates.push_back(mid_point[2]);
+
+                                        double volume = tetrahedronVolume(point_coordinates);
+                                        if (volume < threshold){
+                                            skip_mid_point = true;
+                                        }
+
+                                    }
+
+                                    if(! skip_mid_point){
+                                        sample_points.push_back(mid_point);
+                                    }
+							
 							  }
 						  } });
 

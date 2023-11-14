@@ -44,6 +44,13 @@ namespace mcmt
     std::vector<double> new_samples = mcmt.sample_points_rejection(num_points, min_value, max_value);
     return py::array_t<double>(new_samples.size(), new_samples.data());
   }
+  
+  static py::array_t<double> sample_points_voronoi(int num_points)
+  {
+    std::vector<double> new_samples = mcmt.sample_points_voronoi(num_points);
+    return py::array_t<double>(new_samples.size(), new_samples.data());
+  }
+
 
   static py::array_t<double> get_grid_points()
   {
@@ -95,6 +102,8 @@ namespace mcmt
     m.def("add_mid_points", &add_mid_points,
           "add mid points to mcmt");
     m.def("sample_points_rejection", &sample_points_rejection,
+          "monte carlo sampling from mcm");
+    m.def("sample_points_voronoi", &sample_points_voronoi,
           "monte carlo sampling from mcm");
     m.def("lloyd_relaxation", &lloyd_relaxation,
           "lloyd relaxation");
