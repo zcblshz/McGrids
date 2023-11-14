@@ -33,7 +33,7 @@ int main(int argc, char **argv)
     }
     mcmt.add_points(points.size() / 3, points.data(), point_values.data());
 
-    for(int i=0; i<100; i++){
+    for(int i=0; i<10; i++){
         std::vector<double> sample_points = mcmt.sample_points_voronoi(256);
         point_values.clear();
         for (int i = 0; i < sample_points.size() / 3; i++)
@@ -48,62 +48,41 @@ int main(int argc, char **argv)
 
     }
 
-    // mcmt.output_grid_points("grid.obj");
-    // exit(0);
 
-    // for (int i=0; i<100; i++){
-    //     point_values.clear();
-    //     std::vector<double> sample_points = mcmt.sample_points_rejection(256, -1, 1);
-    //     // std::vector<double> sample_points = mcmt.sample_points(256);
-    //     std::vector<double> relaxed_sample_points = sample_points;
-    //     // std::vector<double> relaxed_sample_points = mcmt.lloyd_relaxation(sample_points.data(), sample_points.size()/3, 1);
-    //     for (int i = 0; i < sample_points.size() / 3; i++)
-    //     {
-    //         point_values.push_back(SDF::sphere_sdf(relaxed_sample_points[i * 3], relaxed_sample_points[i * 3 + 1], relaxed_sample_points[i * 3 + 2]));
-    //     }
-    //     mcmt.add_points(relaxed_sample_points.size() / 3, relaxed_sample_points.data(), point_values.data());
-    //     std::cout << "Sampling iter: " << i << std::endl;
-    // }
-    // mcmt.output_grid_points("step_1_points.obj");
-    // // exit(0);
-    // mcmt.save_triangle_mesh("step_1_mesh_lloyd.obj");
-	// mcmt.save_grid_mesh("tet_mesh.obj", 0.5);
+    for (int i = 0; i < 100; i++)
+    {
+        point_values.clear();
 
-    // exit(0);
-    // for (int i = 0; i < 100; i++)
-    // {
-    //     point_values.clear();
+        std::string filename = "grid_" + std::to_string(i) + ".obj";
+        std::ofstream mid_file(filename);
+        // mcmt.save_triangle_mesh("before_mid_mesh_" + std::to_string(i) + ".obj");
 
-    //     std::string filename = "grid_" + std::to_string(i) + ".obj";
-    //     std::ofstream mid_file(filename);
-    //     // mcmt.save_triangle_mesh("before_mid_mesh_" + std::to_string(i) + ".obj");
+        std::vector<double> mid_points = mcmt.get_mid_points();
+        std::cout << "-------"  << std::endl;
+        for (int j = 0; j < mid_points.size() / 3; j++)
+        {
+            point_values.push_back(SDF::sphere_sdf(mid_points[j * 3], mid_points[j * 3 + 1], mid_points[j * 3 + 2]));
+            mid_file << "v " << mid_points[j * 3] << " " << mid_points[j * 3 + 1] << " " << mid_points[j * 3 + 2] << std::endl;
+        }
+        std::vector<double> additional_points;
+        std::vector<double> additional_point_values;
 
-    //     std::vector<double> mid_points = mcmt.get_mid_points();
-    //     std::cout << "-------"  << std::endl;
-    //     for (int j = 0; j < mid_points.size() / 3; j++)
-    //     {
-    //         point_values.push_back(SDF::sphere_sdf(mid_points[j * 3], mid_points[j * 3 + 1], mid_points[j * 3 + 2]));
-    //         mid_file << "v " << mid_points[j * 3] << " " << mid_points[j * 3 + 1] << " " << mid_points[j * 3 + 2] << std::endl;
-    //     }
-    //     std::vector<double> additional_points;
-    //     std::vector<double> additional_point_values;
+        for(int j=0; j<point_values.size(); j++){
+            if(std::abs(point_values[j]) > threshold){
+                additional_points.push_back(mid_points[j*3]);
+                additional_points.push_back(mid_points[j*3+1]);
+                additional_points.push_back(mid_points[j*3+2]);
+                additional_point_values.push_back(point_values[j]);
+            }
+        }
+        if (additional_points.size() == 0)
+            break;
+        mcmt.add_mid_points(additional_points.size() / 3, additional_points.data(), additional_point_values.data());
+        mcmt.save_triangle_mesh("step_2_mesh_" + std::to_string(i) + ".obj");
+        mcmt.output_grid_points("step_2_grid_" + std::to_string(i) + ".obj");
 
-    //     for(int j=0; j<point_values.size(); j++){
-    //         if(std::abs(point_values[j]) > threshold){
-    //             additional_points.push_back(mid_points[j*3]);
-    //             additional_points.push_back(mid_points[j*3+1]);
-    //             additional_points.push_back(mid_points[j*3+2]);
-    //             additional_point_values.push_back(point_values[j]);
-    //         }
-    //     }
-    //     if (additional_points.size() == 0)
-    //         break;
-    //     mcmt.add_mid_points(additional_points.size() / 3, additional_points.data(), additional_point_values.data());
-    //     mcmt.save_triangle_mesh("step_2_mesh_" + std::to_string(i) + ".obj");
-    //     mcmt.output_grid_points("step_2_grid_" + std::to_string(i) + ".obj");
-
-    //     std::cout << "Mid Point iter: " << i << std::endl;
-    // }
+        std::cout << "Mid Point iter: " << i << std::endl;
+    }
 
 	mcmt.clear();
 

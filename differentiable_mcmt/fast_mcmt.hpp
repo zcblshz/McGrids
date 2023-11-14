@@ -50,7 +50,7 @@ namespace GEO
 
 	private:
 		PeriodicDelaunay3d *delaunay_;
-		PeriodicDelaunay3d::IncidentTetrahedra W_;
+		// PeriodicDelaunay3d::IncidentTetrahedra W_;
 		bool periodic_ = false;
 		double max_bound = 0;
 		double min_bound = 0;
@@ -72,7 +72,7 @@ namespace GEO
 		{
 			return index_t(point_positions_.size() / 3);
 		}
-		void get_cell(index_t v, ConvexCell &C);
+		void get_cell(index_t v, ConvexCell &C, PeriodicDelaunay3d::IncidentTetrahedra& W);
 
 		std::vector<double> compute_face_mid_point(int num_points, const std::vector<double> &points);
 		std::vector<double> interpolate(double *point1, double *point2, double sd1, double sd2);
