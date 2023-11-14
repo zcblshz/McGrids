@@ -4,7 +4,7 @@
 int main(int argc, char **argv)
 {
     using namespace GEO;
-    double threshold = 1e-3;
+    double threshold = 1e-5;
     int constrain_res = 4;
     int num_constrain_points = constrain_res * constrain_res * constrain_res;
 
@@ -17,12 +17,12 @@ int main(int argc, char **argv)
         {
             for (int k = 0; k < constrain_res; k++)
             {
-                points.push_back(((1. / double(constrain_res - 1)) * i - 0.5)*2);
-                points.push_back(((1. / double(constrain_res - 1)) * j - 0.5)*2);
-                points.push_back(((1. / double(constrain_res - 1)) * k - 0.5)*2);
-                // points.push_back(Numeric::random_float64() * 2.0 - 1.0);
-                // points.push_back(Numeric::random_float64() * 2.0 - 1.0);
-                // points.push_back(Numeric::random_float64() * 2.0 - 1.0);
+                // points.push_back(((1. / double(constrain_res - 1)) * i - 0.5));
+                // points.push_back(((1. / double(constrain_res - 1)) * j - 0.5));
+                // points.push_back(((1. / double(constrain_res - 1)) * k - 0.5));
+                points.push_back(Numeric::random_float64() - 1.0);
+                points.push_back(Numeric::random_float64() - 1.0);
+                points.push_back(Numeric::random_float64() - 1.0);
 
             }
         }
@@ -37,7 +37,7 @@ int main(int argc, char **argv)
     }
     mcmt.add_points(points.size() / 3, points.data(), point_values.data());
 
-    for(int i=0; i<100; i++){
+    for(int i=0; i<10; i++){
         std::vector<double> sample_points = mcmt.sample_points_voronoi(256);
         point_values.clear();
         for (int i = 0; i < sample_points.size() / 3; i++)
@@ -45,10 +45,13 @@ int main(int argc, char **argv)
             point_values.push_back(SDF::sphere_sdf(sample_points[i * 3], sample_points[i * 3 + 1], sample_points[i * 3 + 2]));
         }
         mcmt.add_points(sample_points.size() / 3, sample_points.data(), point_values.data());
+        std::cout << "Sampling iter: " << i << std::endl;
+        mcmt.output_grid_points("grid_" + std::to_string(i) + ".obj");
+
     }
 
     mcmt.output_grid_points("grid.obj");
-    exit(0);
+    // exit(0);
 
     for (int i=0; i<10; i++){
         point_values.clear();
@@ -75,8 +78,10 @@ int main(int argc, char **argv)
 
         std::string filename = "grid_" + std::to_string(i) + ".obj";
         std::ofstream mid_file(filename);
+        mcmt.save_triangle_mesh("before_mid_mesh_" + std::to_string(i) + ".obj");
 
         std::vector<double> mid_points = mcmt.get_mid_points();
+        std::cout << "-------"  << std::endl;
         for (int j = 0; j < mid_points.size() / 3; j++)
         {
             point_values.push_back(SDF::sphere_sdf(mid_points[j * 3], mid_points[j * 3 + 1], mid_points[j * 3 + 2]));
@@ -95,8 +100,9 @@ int main(int argc, char **argv)
         }
         if (additional_points.size() == 0)
             break;
-        mcmt.add_points(additional_points.size() / 3, additional_points.data(), additional_point_values.data());
-        mcmt.save_triangle_mesh("step_2_mesh_" + std::to_string(i) + ".obj");
+        mcmt.add_mid_points(additional_points.size() / 3, additional_points.data(), additional_point_values.data());
+        // mcmt.save_triangle_mesh("step_2_mesh_" + std::to_string(i) + ".obj");
+        std::cout << "Mid Point iter: " << i << std::endl;
     }
 
 	mcmt.clear();

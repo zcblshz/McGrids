@@ -59,6 +59,7 @@ namespace GEO {
 		std::vector<double> point_values_;
 		std::vector<double> point_errors_;
 		std::vector<double> point_volumes_;
+		std::vector<bool> volume_changed_;
 
 		// std::vector<double> sample_tet(std::vector<int> vertex_indices);
 		std::vector<double> sample_tet(std::vector<double> point_positions);

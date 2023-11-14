@@ -9,13 +9,13 @@ namespace SDF{
         double centerY = 0.5;
         double centerZ = 0.5;
 
-        centerX = 0.0;
-        centerY = 0.0;
-        centerZ = 0.0;
+        // centerX = 0.0;
+        // centerY = 0.0;
+        // centerZ = 0.0;
 
 
         // Radius of the sphere
-        double radius = 0.3; // Adjust the radius as needed (should be less than 0.5 to fit within [0, 1])
+        double radius = 1; // Adjust the radius as needed (should be less than 0.5 to fit within [0, 1])
 
         // Calculate the distance from the point to the center of the sphere
         double distance = std::sqrt((x - centerX) * (x - centerX) + (y - centerY) * (y - centerY) + (z - centerZ) * (z - centerZ));
