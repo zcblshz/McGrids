@@ -180,7 +180,7 @@ namespace GEO
         double t = sd1 / ((sd1 - sd2));
         if (abs(sd1 - sd2) < 1e-6)
         {
-            std::cout << "WARNING! SD1 == SD2" << std::endl;
+            // std::cout << "WARNING! SD1 == SD2" << std::endl;
             t = 0.5;
         }
         return std::vector<double>{p1_x + t * (p2_x - p1_x), p1_y + t * (p2_y - p1_y), p1_z + t * (p2_z - p1_z)};
@@ -432,13 +432,11 @@ namespace GEO
         tbb::parallel_for(tbb::blocked_range<int>(0, voronoi_density.size()),
                           [&](tbb::blocked_range<int> ti)
                           {
-                            for (int i = ti.begin(); i < ti.end(); i++)
-                            {
-                                voronoi_density[i] /= voronoi_density_sum;
-                            }
+                              for (int i = ti.begin(); i < ti.end(); i++)
+                              {
+                                  voronoi_density[i] /= voronoi_density_sum;
+                              }
                           });
-
-
 
         std::vector<double> cumsum;
         double current_sum = 0;
@@ -451,19 +449,19 @@ namespace GEO
         tbb::parallel_for(tbb::blocked_range<int>(0, num_points),
                           [&](tbb::blocked_range<int> ti)
                           {
-                            for (int i = ti.begin(); i < ti.end(); i++)
-                            {
-                                auto upper = std::upper_bound(cumsum.begin(), cumsum.end(), Numeric::random_float64());
-                                int voro_index = std::distance(cumsum.begin(), upper);
-                                std::vector<double> sampled_point = sample_polytope(voro_index);
-                                // sample_points.push_back(sampled_point[0]);
-                                // sample_points.push_back(sampled_point[1]);
-                                // // sample_points.push_back(sampled_point[2]);
-                                // sample_points[i * 3] = sampled_point[0];
-                                // sample_points[i * 3 + 1] = sampled_point[1];
-                                // sample_points[i * 3 + 2] = sampled_point[2];
-                                sample_points.push_back(std::vector<double>{sampled_point[0], sampled_point[1], sampled_point[2]});
-                            }
+                              for (int i = ti.begin(); i < ti.end(); i++)
+                              {
+                                  auto upper = std::upper_bound(cumsum.begin(), cumsum.end(), Numeric::random_float64());
+                                  int voro_index = std::distance(cumsum.begin(), upper);
+                                  std::vector<double> sampled_point = sample_polytope(voro_index);
+                                  // sample_points.push_back(sampled_point[0]);
+                                  // sample_points.push_back(sampled_point[1]);
+                                  // // sample_points.push_back(sampled_point[2]);
+                                  // sample_points[i * 3] = sampled_point[0];
+                                  // sample_points[i * 3 + 1] = sampled_point[1];
+                                  // sample_points[i * 3 + 2] = sampled_point[2];
+                                  sample_points.push_back(std::vector<double>{sampled_point[0], sampled_point[1], sampled_point[2]});
+                              }
                           });
         // std::vector<double> sample_points_vec(sample_points.begin(), sample_points.end());
         std::vector<double> sample_points_vec;
@@ -545,50 +543,46 @@ namespace GEO
             return std::vector<double>{};
         }
 
-
-        tbb::parallel_for(tbb::blocked_range<int>(num_point_visited_,  point_positions_.size() / 3),
+        tbb::parallel_for(tbb::blocked_range<int>(num_point_visited_, point_positions_.size() / 3),
                           [&](tbb::blocked_range<int> ti)
                           {
-
-                            for (int i = ti.begin(); i < ti.end(); i++)
-                            {
-                                PeriodicDelaunay3d::IncidentTetrahedra W;
-                                delaunay_->get_incident_tets(i, W);
-                                for (auto it = W.begin(); it != W.end(); it++)
-                                {
-                                    if (*it < delaunay_->nb_finite_cells() && *it >= 0)
-                                    {
-                                        bool skip = false;
-                                        for (int lv = 0; lv < 4; lv++)
-                                        {
-                                            int v = delaunay_->cell_vertex(*it, lv);
-                                            if (v == -1)
-                                            {
-                                                skip = true;
-                                            }
-                                            if (point_positions_[v * 3] - min_bound < 1e-6 || max_bound - point_positions_[v * 3] < 1e-6)
-                                            {
-                                                skip = true;
-                                            }
-                                            if (point_positions_[v * 3 + 1] - min_bound < 1e-6 || max_bound - point_positions_[v * 3 + 1] < 1e-6)
-                                            {
-                                                skip = true;
-                                            }
-                                            if (point_positions_[v * 3 + 2] - min_bound < 1e-6 || max_bound - point_positions_[v * 3 + 2] < 1e-6)
-                                            {
-                                                skip = true;
-                                            }
-                                        }
-                                        if (!skip)
-                                        {
-                                            new_cells.insert(*it);
-                                        }
-                                    }
-                                }
-                            }
-
+                              for (int i = ti.begin(); i < ti.end(); i++)
+                              {
+                                  PeriodicDelaunay3d::IncidentTetrahedra W;
+                                  delaunay_->get_incident_tets(i, W);
+                                  for (auto it = W.begin(); it != W.end(); it++)
+                                  {
+                                      if (*it < delaunay_->nb_finite_cells() && *it >= 0)
+                                      {
+                                          bool skip = false;
+                                          for (int lv = 0; lv < 4; lv++)
+                                          {
+                                              int v = delaunay_->cell_vertex(*it, lv);
+                                              if (v == -1)
+                                              {
+                                                  skip = true;
+                                              }
+                                              if (point_positions_[v * 3] - min_bound < 1e-6 || max_bound - point_positions_[v * 3] < 1e-6)
+                                              {
+                                                  skip = true;
+                                              }
+                                              if (point_positions_[v * 3 + 1] - min_bound < 1e-6 || max_bound - point_positions_[v * 3 + 1] < 1e-6)
+                                              {
+                                                  skip = true;
+                                              }
+                                              if (point_positions_[v * 3 + 2] - min_bound < 1e-6 || max_bound - point_positions_[v * 3 + 2] < 1e-6)
+                                              {
+                                                  skip = true;
+                                              }
+                                          }
+                                          if (!skip)
+                                          {
+                                              new_cells.insert(*it);
+                                          }
+                                      }
+                                  }
+                              }
                           });
-
 
         std::vector<int> new_cell_ids(new_cells.begin(), new_cells.end());
         tbb::concurrent_vector<std::vector<double>> sample_points;
@@ -704,64 +698,100 @@ namespace GEO
     }
     std::vector<double> MCMT::lloyd_relaxation(double *relaxed_point_positions, int num_points, int num_iter)
     {
+        // std::cout << "num_points: " << num_points << std::endl;
+
         int current_num_points = point_positions_.size() / 3;
         // copy point_positions_ to new_points
-        std::vector<double> new_points;
-        new_points.reserve(point_positions_.size() + num_points * 3);
+        std::vector<double> all_points;
+        all_points.resize(point_positions_.size() + num_points * 3);
+
         for (int i = 0; i < point_positions_.size(); i++)
         {
-            new_points.push_back(point_positions_[i]);
+            all_points[i] = point_positions_[i];
         }
         for (int i = 0; i < num_points * 3; i++)
         {
-            new_points.push_back(relaxed_point_positions[i]);
+            all_points[i + point_positions_.size()] = relaxed_point_positions[i];
         }
+
         delete delaunay_;
         delaunay_ = new PeriodicDelaunay3d(periodic_, 1.0);
+        // std::cout << "Before" << std::endl;
         if (!periodic_)
         {
             delaunay_->set_keeps_infinite(true);
         }
-        delaunay_->set_vertices(new_points.size() / 3, new_points.data());
+        delaunay_->set_vertices(all_points.size() / 3, all_points.data());
         delaunay_->compute();
-        ConvexCell C;
+        // std::cout << "After" << std::endl;
 
         for (int i = 0; i < num_iter; i++)
         {
-            std::vector<double> new_new_points(new_points.size());
-            for (index_t v = current_num_points; v < delaunay_->nb_vertices(); v++)
+            std::vector<double> updated_lloyd_points;
+            updated_lloyd_points.resize(all_points.size());
+            // std::cout << "Current number of points: " << current_num_points << " New points size: " << updated_lloyd_points.size() / 3 << std::endl;
+
+            for(int j=0; j<current_num_points*3; j++){
+                updated_lloyd_points[j] = all_points[j];
+            }
+
+            for (index_t v = current_num_points; v < all_points.size() / 3; v++)
             {
-                // std::cout << "V: " << v << std::endl;
+                // std::cout << "After get cell123" << std::endl;
+
                 PeriodicDelaunay3d::IncidentTetrahedra W;
+                ConvexCell C;
 
                 get_cell(v, C, W);
+                // std::cout << "After get cell" << std::endl;
+
                 vec3 g = C.barycenter();
+                // std::cout << "v: " << v << " " << delaunay_->nb_vertices() << std::endl;
+                //
                 // std::cout << "g: " << g << std::endl;
-                new_new_points[3 * v] = g.x;
-                new_new_points[3 * v + 1] = g.y;
-                new_new_points[3 * v + 2] = g.z;
+                if (v >= current_num_points)
+                {
+                    updated_lloyd_points[3 * v] = g.x;
+                    updated_lloyd_points[3 * v + 1] = g.y;
+                    updated_lloyd_points[3 * v + 2] = g.z;
+                }
             }
+            // std::cout << "=======1======" << std::endl;
+
             for (index_t v = current_num_points; v < delaunay_->nb_vertices(); v++)
             {
-                if (new_new_points[v] < min_bound)
+                if (updated_lloyd_points[v] < min_bound)
                 {
-                    new_new_points[v] += (max_bound - min_bound);
+                    updated_lloyd_points[v] += (max_bound - min_bound);
                 }
-                if (new_new_points[v] > max_bound)
+                if (updated_lloyd_points[v] > max_bound)
                 {
-                    new_new_points[v] -= (max_bound - min_bound);
+                    updated_lloyd_points[v] -= (max_bound - min_bound);
                 }
             }
-            new_points.swap(new_new_points);
-            delaunay_->set_vertices(new_points.size() / 3, new_points.data());
+            // std::cout << "=======2======" << std::endl;
+
+            all_points.swap(updated_lloyd_points);
+            // std::cout << "=======3======" << std::endl;
+
+            delete delaunay_;
+            delaunay_ = new PeriodicDelaunay3d(periodic_, 1.0);
+            // std::cout << "=======4======" << std::endl;
+
+            // std::cout << "=======4======" << std::endl;
+
+            delaunay_->set_vertices(updated_lloyd_points.size() / 3, updated_lloyd_points.data());
+            // std::cout << "=======5======" << std::endl;
+
             delaunay_->compute();
+            // std::cout << "=======6======" << std::endl;
         }
         std::vector<double> points_vec;
         points_vec.reserve(num_points * 3);
 
         for (int i = current_num_points * 3; i < current_num_points * 3 + num_points * 3; i++)
         {
-            points_vec.push_back(new_points[i]);
+            points_vec.push_back(all_points[i]);
         }
         return points_vec;
     }
