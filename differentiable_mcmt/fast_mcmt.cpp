@@ -332,7 +332,6 @@ namespace GEO
     std::vector<double> MCMT::sample_polytope(int vor_index)
     {
         // vor_index = 10;
-        std::ofstream output_mesh("cell_new.obj");
         ConvexCell C;
         PeriodicDelaunay3d::IncidentTetrahedra W;
         get_cell(vor_index, C, W);
@@ -382,13 +381,13 @@ namespace GEO
                         tetrahedron.push_back(P[i].x);
                         tetrahedron.push_back(P[i].y);
                         tetrahedron.push_back(P[i].z);
-                        output_mesh << "v " << P[i].x << " " << P[i].y << " " << P[i].z << std::endl;
+                        // output_mesh << "v " << P[i].x << " " << P[i].y << " " << P[i].z << std::endl;
                     }
                     tetrahedron.push_back(g.x);
                     tetrahedron.push_back(g.y);
                     tetrahedron.push_back(g.z);
                     tetrahedrons.push_back(tetrahedron);
-                    output_mesh << "f " << index << "  " << index + 1 << " " << index + 2 << std::endl;
+                    // output_mesh << "f " << index << "  " << index + 1 << " " << index + 2 << std::endl;
                     index += 3;
                     P[1] = P[2];
                 }
@@ -674,10 +673,13 @@ namespace GEO
 						  } });
 
         std::vector<double> new_points;
-        new_points.reserve(sample_points.size() * 3);
+        new_points.resize(sample_points.size() * 3);
         for (int i = 0; i < sample_points.size(); i++)
         {
-            new_points.insert(new_points.end(), sample_points[i].begin(), sample_points[i].end());
+            new_points[i*3] = sample_points[i][0];
+            new_points[i*3+1] = sample_points[i][1];
+            new_points[i*3+2] = sample_points[i][2];
+
         }
         return new_points;
     }
