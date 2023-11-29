@@ -19,6 +19,7 @@
 #include <tbb/concurrent_unordered_map.h>
 struct VertexInfo {
 	int point_index;
+	bool visited = false;
 	double point_value;
 	double point_density;
 	VertexInfo() : point_index(0), point_value(0.0), point_density(0.0) {}
@@ -48,49 +49,15 @@ namespace GEO
 	public:
 		MCMT();
 		~MCMT();
+		void clear();
 		int add_points(const std::vector<Point> &points, const std::vector<double> &point_values);
+		std::vector<Point> get_mid_points();
 		void export_grid_off(const std::string &filename);
 		void export_surface_obj(const std::string &filename);
-
-		// void clear();
-
-		// void add_points(int num_points, double *point_positions, double *point_values);
-		// void add_mid_points(int num_points, double *point_positions, double *point_values);
-		// std::vector<double> get_mid_points();
-		// std::vector<double> get_grid_points();
-		// std::vector<int> get_grids();
-		// std::vector<double> sample_points_rejection(int num_samples, double min_value, double max_value);
-		// // std::vector<double> sample_points(int num_samples);
-		// std::vector<double> lloyd_relaxation(double *point_positions, int num_points, int num_iter);
-		// void output_grid_points(std::string filename);
-		// void save_triangle_mesh(std::string filename);
-		// void save_grid_mesh(std::string filename, float x_clip_plane);
-
-		// std::vector<double> sample_points_voronoi(const int num_points);
-
 	private:
 		Delaunay *delaunay_;
-		// PeriodicDelaunay3d::IncidentTetrahedra W_;
-		// bool periodic_ = false;
-		// double max_bound = 0;
-		// double min_bound = 0;
-		// int num_point_visited_ = 0;
-		// std::vector<double> point_positions_;
-		// std::vector<double> point_values_;
-		// std::vector<double> point_errors_;
-		// std::vector<double> point_volumes_;
-		// std::vector<bool> volume_changed_;
-
-		// std::vector<double> sample_tet(std::vector<double> point_positions);
-		// std::vector<double> compute_tet_error();
-		// std::vector<double> sample_polytope(int vertex_index);
-		// std::vector<double> compute_voronoi_error();
-
-		// double tetrahedronVolume(const std::vector<double> &coordinates);
-		// void save_face(std::ofstream &output_mesh, const std::vector<double> &points, int &vertex_count);
-		// void get_cell(index_t v, ConvexCell &C, PeriodicDelaunay3d::IncidentTetrahedra& W);
-
-		// std::vector<double> compute_face_mid_point(int num_points, const std::vector<double> &points);
+		int num_point_visited_ = 0;
+		std::vector<std::pair<int, int>> configurations_;
 		Point interpolate(Vertex_handle p1, Vertex_handle p2);
 		std::vector<double> compute_point_bbox(const std::vector<Point>& points);
 		double compute_point_density(double point_value);
