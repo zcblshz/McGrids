@@ -5,7 +5,7 @@ int main(int argc, char **argv)
 {
     using namespace GEO;
     double threshold = 1e-5;
-    int constrain_res = 4;
+    int constrain_res = 256;
     int num_constrain_points = constrain_res * constrain_res * constrain_res;
 
     std::vector<double> points;
@@ -32,8 +32,8 @@ int main(int argc, char **argv)
         point_values.push_back(SDF::sphere_sdf(points[i * 3], points[i * 3 + 1], points[i * 3 + 2]));
     }
     mcmt.add_points(points.size() / 3, points.data(), point_values.data());
-
-    for(int i=0; i<10; i++){
+    exit(0);
+    for(int i=0; i<0; i++){
         std::vector<double> sample_points = mcmt.sample_points_voronoi(256);
         point_values.clear();
         for (int i = 0; i < sample_points.size() / 3; i++)
@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     }
 
 
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 00; i++)
     {
         point_values.clear();
 

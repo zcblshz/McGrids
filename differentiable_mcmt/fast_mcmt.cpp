@@ -1,5 +1,4 @@
 #include "fast_mcmt.hpp"
-#include "kdtree.hpp"
 #include <tbb/tbb.h>
 
 namespace GEO
@@ -184,40 +183,6 @@ namespace GEO
             t = 0.5;
         }
         return std::vector<double>{p1_x + t * (p2_x - p1_x), p1_y + t * (p2_y - p1_y), p1_z + t * (p2_z - p1_z)};
-    }
-
-    std::vector<double> MCMT::sample_points_rejection(int num_points, double min_bound, double max_bound)
-    {
-        // compute density
-        KDTree tree = KDTree(point_positions_.size() / 3, point_positions_.data(), point_errors_.data());
-        int current_num_points = 0;
-        int batch_size = 4096;
-        std::vector<double> sampled_points;
-        while (current_num_points < num_points)
-        {
-            std::vector<double> new_points;
-            new_points.reserve(batch_size * 3);
-            for (int i = 0; i < batch_size * 3; i++)
-            {
-                new_points.push_back(Numeric::random_float64() * (max_bound - min_bound) + min_bound);
-            }
-            std::vector<double> density = tree.compute_density(batch_size, new_points.data());
-            double max_density = *std::max_element(density.begin(), density.end());
-            for (int i = 0; i < batch_size; i++)
-            {
-                double threshold = Numeric::random_float64() * max_density;
-                if (density[i] > threshold)
-                {
-                    sampled_points.push_back(new_points[i * 3]);
-                    sampled_points.push_back(new_points[i * 3 + 1]);
-                    sampled_points.push_back(new_points[i * 3 + 2]);
-                    current_num_points++;
-                    if (current_num_points == num_points)
-                        break;
-                }
-            }
-        }
-        return sampled_points;
     }
 
     double MCMT::tetrahedronVolume(const std::vector<double> &coordinates)

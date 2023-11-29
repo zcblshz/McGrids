@@ -6,9 +6,6 @@ project(fast_MCMT LANGUAGES CXX CUDA)
 SET(SRCS 
 	fast_mcmt.cpp
 	fast_mcmt.hpp
-  kdtree.hpp
-  nanoflann.hpp
-  KDTreeVectorOfVectorsAdaptor.hpp
   )
 
 add_library(fast_mcmt STATIC ${SRCS})
