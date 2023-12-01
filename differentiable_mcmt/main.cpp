@@ -5,35 +5,64 @@ int main(int argc, char **argv)
 {
     using namespace GEO;
     double threshold = 1e-5;
-    int constrain_res = 8;
+    int constrain_res = 4;
     int num_constrain_points = constrain_res * constrain_res * constrain_res;
 
     std::vector<Point> points;
     std::vector<double> point_values;
 
-    // always put constrained points in front
     for (int i = 0; i < constrain_res; i++)
     {
         for (int j = 0; j < constrain_res; j++)
         {
             for (int k = 0; k < constrain_res; k++)
-            {
-                double random_x = (double)rand() / RAND_MAX;
-                double random_y = (double)rand() / RAND_MAX;
-                double random_z = (double)rand() / RAND_MAX;
-                double value = SDF::sphere_sdf(random_x-0.5, random_y-0.5, random_z-0.5);
-                points.push_back(Point(random_x-0.5, random_y-0.5, random_z-0.5));
+            {   
+                double px = (double)i / (constrain_res - 1);
+                double py = (double)j / (constrain_res - 1);
+                double pz = (double)k / (constrain_res - 1);
+
+                double random_x = (double)rand() / RAND_MAX * 1e-6;
+                double random_y = (double)rand() / RAND_MAX * 1e-6;
+                double random_z = (double)rand() / RAND_MAX * 1e-6;
+                px = px + random_x;
+                py = py + random_y;
+                pz = pz + random_z;
+                double value = SDF::sphere_sdf(px-0.5, py-0.5, pz-0.5);
+                points.push_back(Point(px-0.5, py-0.5, pz-0.5));
                 point_values.push_back(value);
             }
         }
     }
 
+
+
     MCMT mcmt = MCMT();
     int num_initial_points = mcmt.add_points(points, point_values);
+
+    mcmt.export_grid_off("Grid_initial.off");
+    mcmt.export_surface_obj("Surface_initial.obj");
+
     std::cout << "Initial points added: " << num_initial_points << std::endl;
 
+    // sample iters
+    for(int i =0; i< 100; i++){
+        std::vector<Point> sampled_points = mcmt.sample_tetrahedron(128);
+        std::vector<double> sampled_point_values;
+        for (int j = 0; j < sampled_points.size(); j++)
+        {
+            double value = SDF::sphere_sdf(sampled_points[j].x(), sampled_points[j].y(), sampled_points[j].z());
+            sampled_point_values.push_back(value);
+        }
+        int num_vertices = mcmt.add_points(sampled_points, sampled_point_values);
+        std::cout << "Iter: " << i << " Total Points: " << num_vertices << std::endl;
 
-    for(int i=0; i< 20; i++){
+    }
+
+    mcmt.export_grid_off("Grid_after_random_sample.off");
+    mcmt.export_surface_obj("Surface_after_random_sample.obj");
+
+    // mid point iters
+    for(int i=0; i< 100; i++){
         std::cout <<    "Iteration: " << i << std::endl;
         std::vector<Point> mid_points = mcmt.get_mid_points();
         std::cout <<    "Num mid points: " << mid_points.size() << std::endl;
@@ -51,12 +80,10 @@ int main(int argc, char **argv)
             break;
         int num_vertices = mcmt.add_points(added_points, mid_point_values);
         std::cout << "Total Points: " << num_vertices << std::endl;
-        // mcmt.export_grid_off("Grid_" + std::to_string(i) + ".off");
-        // mcmt.export_surface_obj("Surface" + std::to_string(i) + ".obj");
     }
 
-    mcmt.export_grid_off("Grid.off");
-    mcmt.export_surface_obj("Surface.obj");
+    mcmt.export_grid_off("Grid_after_mid_point.off");
+    mcmt.export_surface_obj("Surface_after_mid_point.obj");
 
     return 0;
 }

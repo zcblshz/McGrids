@@ -51,15 +51,16 @@ namespace GEO
 		~MCMT();
 		void clear();
 		int add_points(const std::vector<Point> &points, const std::vector<double> &point_values);
+		std::vector<Point> sample_tetrahedron(int num_samples);
 		std::vector<Point> get_mid_points();
 		void export_grid_off(const std::string &filename);
 		void export_surface_obj(const std::string &filename);
 	private:
 		Delaunay *delaunay_;
-		int num_point_visited_ = 0;
 		std::vector<std::pair<int, int>> configurations_;
 		Point interpolate(Vertex_handle p1, Vertex_handle p2);
 		std::vector<double> compute_point_bbox(const std::vector<Point>& points);
 		double compute_point_density(double point_value);
+		Point sample_tetrahedron(Cell_handle cell);
 	};
 }

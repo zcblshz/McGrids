@@ -15,6 +15,7 @@ namespace SDF{
 
 
         // Radius of the sphere
+        // double radius = 1; // Adjust the radius as needed (should be less than 0.5 to fit within [0, 1])
         double radius = 0.3; // Adjust the radius as needed (should be less than 0.5 to fit within [0, 1])
 
         // Calculate the distance from the point to the center of the sphere

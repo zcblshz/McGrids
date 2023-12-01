@@ -21,12 +21,15 @@ namespace GEO
     }
 
     int MCMT::add_points(const std::vector<Point> &points, const std::vector<double> &point_values)
-    {
+    {   
+        int current_num_vertices = 0;
+        if (delaunay_ != nullptr)
+         current_num_vertices = delaunay_->number_of_vertices();
         std::vector<double> bbox = compute_point_bbox(points);
         std::vector<std::pair<Point, VertexInfo>> points_with_info;
         for (int i = 0; i < points.size(); i++)
         {
-            points_with_info.push_back(std::make_pair(points[i], VertexInfo(i, point_values[i], compute_point_density(point_values[i]))));
+            points_with_info.push_back(std::make_pair(points[i], VertexInfo(i + current_num_vertices, point_values[i], compute_point_density(point_values[i]))));
         }
         // create a lock datastructure for parallel insertion
         Delaunay::Lock_data_structure locking_ds(CGAL::Bbox_3(bbox[0], bbox[1], bbox[2], bbox[3], bbox[4], bbox[5]), 50);
@@ -42,7 +45,39 @@ namespace GEO
     void MCMT::clear()
     {
         delete delaunay_;
-        num_point_visited_ = 0;
+    }
+
+    std::vector<Point> MCMT::sample_tetrahedron(int num_points){
+        std::vector<double> tetrahedron_volume;
+        // piggback on the delaunay point data structure
+        std::vector<Point> tetrahedron_densities;
+        std::vector<Cell_handle> tetrahedron_cells;
+        tetrahedron_volume.reserve(delaunay_->number_of_finite_cells());
+
+        for (Finite_cells_iterator cit = delaunay_->finite_cells_begin(); cit != delaunay_->finite_cells_end(); cit++){
+            double density_sum = cit->vertex(0)->info().point_density + cit->vertex(1)->info().point_density + cit->vertex(2)->info().point_density + cit->vertex(3)->info().point_density;
+            tetrahedron_volume.push_back(delaunay_->tetrahedron(cit).volume() * density_sum);
+            Point density = Point(cit->vertex(0)->info().point_density, cit->vertex(1)->info().point_density, cit->vertex(2)->info().point_density, cit->vertex(3)->info().point_density);
+            tetrahedron_cells.push_back(cit);
+        }  
+        // normalize the volume
+        double total_volume = std::accumulate(tetrahedron_volume.begin(), tetrahedron_volume.end(), 0.0);
+        for (int i = 0; i < tetrahedron_volume.size(); i++){
+            tetrahedron_volume[i] /= total_volume;
+        }
+        // sample tetrahedron
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::discrete_distribution<int> volume_distribution(tetrahedron_volume.begin(), tetrahedron_volume.end());
+        std::vector<Point> sampled_points;
+        sampled_points.reserve(num_points);
+        for(int n=0; n<num_points;n++){
+            int cell_index = volume_distribution(gen);
+            Point sample_point = sample_tetrahedron(tetrahedron_cells[cell_index]);
+            sampled_points.push_back(sample_point);
+        }
+
+        return sampled_points;
     }
 
     std::vector<Point> MCMT::get_mid_points()
@@ -52,13 +87,20 @@ namespace GEO
         for (Finite_cells_iterator cit = delaunay_->finite_cells_begin(); cit != delaunay_->finite_cells_end(); cit++)
         {
             bool skip_mid_point = false;
+            // if all vertices are visited, skip
+            if (cit->vertex(0)->info().visited && cit->vertex(1)->info().visited && cit->vertex(2)->info().visited && cit->vertex(3)->info().visited)
+            {
+                skip_mid_point = true;
+                continue;
+            }
             // if volume is too small, skip
             double volume = delaunay_->tetrahedron(cit).volume();
             if (volume < 1e-9)
+            {
                 skip_mid_point = true;
-            // if all vertices are visited, skip
-            if (cit->vertex(0)->info().visited && cit->vertex(1)->info().visited && cit->vertex(2)->info().visited && cit->vertex(3)->info().visited)
-                skip_mid_point = true;
+                continue;
+            }
+
             // if all vertices are positive or negative, skip
             unsigned char index = 0;
             for (int lv = 0; lv < 4; ++lv)
@@ -67,7 +109,10 @@ namespace GEO
                     index |= (1 << lv);
             }
             if (index == 0x00 || index == 0x0F)
+            {
                 skip_mid_point = true;
+                continue;
+            }
             // if all pass, compute the mid point
             if (!skip_mid_point)
                 new_cells.push_back(cit);
@@ -100,6 +145,64 @@ namespace GEO
             mid_points.push_back(Point(x_sum / num_intersection, y_sum / num_intersection, z_sum / num_intersection));
         }
         return mid_points;
+    }
+
+    Point MCMT::sample_tetrahedron(Cell_handle cell)
+    {
+        Point p0 = cell->vertex(0)->point();
+        Point p1 = cell->vertex(1)->point();
+        Point p2 = cell->vertex(2)->point();
+        Point p3 = cell->vertex(3)->point();
+        double density0 = cell->vertex(0)->info().point_density;
+        double density1 = cell->vertex(1)->info().point_density;
+        double density2 = cell->vertex(2)->info().point_density;
+        double density3 = cell->vertex(3)->info().point_density;
+        double density_sum = density0 + density1 + density2 + density3;
+        density0 /= density_sum;
+        density1 /= density_sum;
+        density2 /= density_sum;
+        density3 /= density_sum;
+        // generate 3 random number ranging 0-1
+        double s = (double)rand() / RAND_MAX;
+        double t = (double)rand() / RAND_MAX;
+        double u = (double)rand() / RAND_MAX;
+
+
+
+        if (s + t > 1.0)
+        {
+            s = 1.0 - s;
+            t = 1.0 - t;
+        }
+        if (t + u > 1.0)
+        {
+            double tmp = u;
+            u = 1.0 - s - t;
+            t = 1.0 - tmp;
+        }
+        else if (s + t + u > 1.0)
+        {
+            double tmp = u;
+            u = s + t + u - 1.0;
+            s = 1 - t - tmp;
+        }
+        double a = 1 - s - t - u;
+        a *= density0;
+        s *= density1;
+        t *= density2;
+        u *= density3;
+
+        double sum = a + s + t + u;
+        a /= sum;
+        s /= sum;
+        t /= sum;
+        u /= sum;
+
+        double x = a * p0.x() + s * p1.x() + t * p2.x() + u * p3.x();
+        double y = a * p0.y() + s * p1.y() + t * p2.y() + u * p3.y();
+        double z = a * p0.z() + s * p1.z() + t * p2.z() + u * p3.z();
+
+        return Point(x, y, z);
     }
 
     void MCMT::export_grid_off(const std::string &filename)
