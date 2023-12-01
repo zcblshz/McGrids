@@ -12,11 +12,10 @@ import tempfile
 
 class McGrids:
 
-    def __init__(self, sdf_func, clip_min, clip_max, initial_resolution, num_sample_iters, num_sample_points, num_mid_iters, threshold, verbose=False, disable_cvt=False):
+    def __init__(self, sdf_func, clip_min, clip_max, initial_resolution, num_sample_iters, num_sample_points, num_mid_iters, threshold, verbose=False):
         self.sdf_func = sdf_func
         self.clip_min = clip_min
         self.clip_max = clip_max
-        self.disbale_cvt = disable_cvt
         self.initial_resolution = initial_resolution
         self.num_sample_iters = num_sample_iters
         self.num_sample_points = num_sample_points
@@ -27,7 +26,7 @@ class McGrids:
         self.sdf_query_time = 0
         self.compute_time = 0
         self.completed = False
-        mcmt.clear_mcmt()
+        mcmt.clear()
 
 
     def __sdf__(self, points):
@@ -54,10 +53,8 @@ class McGrids:
 
         # sample from distribution and refine approximation
         for i in tqdm.tqdm(range(self.num_sample_iters), disable=not self.verbose):
-            sample_points = mcmt.sample_points_voronoi(
+            sample_points = mcmt.sample_points_tetrahedron(
                 self.num_sample_points).reshape(-1, 3)
-            if not self.disbale_cvt:
-                sample_points = mcmt.lloyd_relaxation(sample_points, 1, -0.5, 0.5).reshape(-1, 3)
             sample_values = self.sdf_func(sample_points)
             mcmt.add_points(sample_points, sample_values)
 
@@ -73,10 +70,7 @@ class McGrids:
                 mid_values[np.abs(mid_values) > self.threshold])
             if len(next_points) == 0:
                 break
-            if not self.disbale_cvt:
-                next_points = mcmt.lloyd_relaxation(next_points, 1, -0.5, 0.5).reshape(-1, 3)
-                next_values = self.__sdf__(next_points)
-            mcmt.add_mid_points(next_points, next_values)
+            mcmt.add_points(next_points, next_values)
         self.completed = True
         self.compute_time = time.time() - start_time
 

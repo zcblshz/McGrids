@@ -3,7 +3,6 @@
 
 int main(int argc, char **argv)
 {
-    using namespace GEO;
     double threshold = 1e-6;
     int constrain_res = 8;
     int num_constrain_points = constrain_res * constrain_res * constrain_res;
@@ -36,7 +35,7 @@ int main(int argc, char **argv)
 
 
 
-    MCMT mcmt = MCMT();
+    MCMT::MCMT mcmt = MCMT::MCMT();
     int num_initial_points = mcmt.add_points(points, point_values);
 
     // mcmt.export_grid_off("Grid_initial.off");

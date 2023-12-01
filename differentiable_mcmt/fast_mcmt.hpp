@@ -17,6 +17,8 @@
 #include <CGAL/Triangulation_vertex_base_3.h>
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
 #include <tbb/concurrent_unordered_map.h>
+#include <tbb/concurrent_set.h>
+
 struct VertexInfo {
 	int point_index;
 	bool visited = false;
@@ -40,8 +42,8 @@ typedef Delaunay::Cell_handle Cell_handle;
 typedef Delaunay::Vertex_handle Vertex_handle;
 typedef Delaunay::Finite_cells_iterator Finite_cells_iterator;
 typedef Delaunay::Finite_vertices_iterator Finite_vertices_iterator;
-typedef Delaunay::Facet Facet;
-namespace GEO
+typedef Delaunay::Cell_circulator Cell_circulator;
+namespace MCMT
 {
 
 	class MCMT
@@ -58,6 +60,7 @@ namespace GEO
 	private:
 		Delaunay *delaunay_;
 		std::vector<std::pair<int, int>> configurations_;
+		tbb::concurrent_set<Cell_handle> newly_created_cells_;
 		Point interpolate(Vertex_handle p1, Vertex_handle p2);
 		std::vector<double> compute_point_bbox(const std::vector<Point>& points);
 		double compute_point_density(double point_value);

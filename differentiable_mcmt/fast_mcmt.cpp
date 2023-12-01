@@ -1,7 +1,6 @@
 #include "fast_mcmt.hpp"
 #include <tbb/tbb.h>
-
-namespace GEO
+namespace MCMT
 {
     MCMT::MCMT()
     {
@@ -38,6 +37,17 @@ namespace GEO
         else
             delaunay_->insert(points_with_info.begin(), points_with_info.end(), &locking_ds);
 
+        newly_created_cells_.clear();
+        tbb::parallel_for_each(points.begin(), points.end(), [&](const Point& point) {
+            Vertex_handle vh = delaunay_->nearest_vertex(point);
+            // find all the cells that contains this vertex
+            std::vector<Cell_handle> incident_cells;
+            delaunay_->incident_cells(vh, std::back_inserter(incident_cells));
+            tbb::parallel_for_each(incident_cells.begin(), incident_cells.end(), [&](const Cell_handle& cell) {
+                newly_created_cells_.insert(cell);
+            });
+        });
+        
         assert(delaunay_->is_valid());
         return delaunay_->number_of_vertices();
     }
@@ -45,6 +55,7 @@ namespace GEO
     void MCMT::clear()
     {
         delete delaunay_;
+        delaunay_ = nullptr;
     }
 
     std::vector<Point> MCMT::sample_tetrahedron(int num_points)
@@ -69,8 +80,6 @@ namespace GEO
                     tetrahedron_volume[i] = delaunay_->tetrahedron(cit).volume() * density_sum;
                 }
             });
-
-        std::cout << "012" << std::endl;
 
         // normalize the volume
         double total_volume = tbb::parallel_reduce(tbb::blocked_range<tbb::concurrent_vector<double>::iterator>(tetrahedron_volume.begin(), tetrahedron_volume.end()), 0.0,
@@ -106,15 +115,10 @@ namespace GEO
     {
         tbb::concurrent_vector<Cell_handle> new_cells;
 
-        std::vector<Finite_cells_iterator> cells;
-        for (auto it = delaunay_->finite_cells_begin(); it != delaunay_->finite_cells_end(); ++it)
-        {
-            cells.push_back(it);
-        }
         tbb::parallel_for_each(
-            cells.begin(),
-            cells.end(),
-            [&](const Finite_cells_iterator &cit)
+            newly_created_cells_.begin(),
+            newly_created_cells_.end(),
+            [&](const Cell_handle &cit)
             {
                 bool skip_mid_point = false;
                 // if all vertices are visited, skip
@@ -123,9 +127,9 @@ namespace GEO
                     skip_mid_point = true;
                     return;
                 }
-                // if volume is too small, skip
+                // // if volume is too small, skip
                 double volume = delaunay_->tetrahedron(cit).volume();
-                if (volume < 1e-9)
+                if (volume < 1e-12)
                 {
                     skip_mid_point = true;
                     return;
@@ -150,7 +154,6 @@ namespace GEO
             });
 
         tbb::concurrent_vector<Point> mid_points;
-
         tbb::parallel_for_each(
             new_cells.begin(),
             new_cells.end(),
@@ -288,8 +291,6 @@ namespace GEO
 
         for (Finite_cells_iterator cell_it = delaunay_->finite_cells_begin(); cell_it != delaunay_->finite_cells_end(); cell_it++)
         {
-            //   std::cout << "cell_it: " << cell_it->vertex(0)->info().point_index << std::endl;
-
             std::vector<int> v_indices;
             bool flag = false;
             for (size_t lv = 0; lv < 4; ++lv)
@@ -298,7 +299,7 @@ namespace GEO
                 v_indices.push_back(int(v));
             }
 
-            for (std::pair vertex_pair : configurations_)
+            for (auto vertex_pair : configurations_)
             {
 
                 if (cell_it->vertex(vertex_pair.first)->info().point_value * cell_it->vertex(vertex_pair.second)->info().point_value < 0)
@@ -318,7 +319,6 @@ namespace GEO
                 intersection_cell.push_back(cell_it);
             }
         }
-        std::cout << "Number of intersection cells " << intersection_cell.size() << std::endl;
 
         for (int i = 0; i < intersection_cell.size(); i++)
         {
@@ -547,7 +547,6 @@ namespace GEO
         double t = sd1 / ((sd1 - sd2));
         if (abs(sd1 - sd2) < 1e-6)
         {
-            // std::cout << "WARNING! SD1 == SD2" << std::endl;
             t = 0.5;
         }
         return Point(p1_x + t * (p2_x - p1_x), p1_y + t * (p2_y - p1_y), p1_z + t * (p2_z - p1_z));

@@ -11,8 +11,9 @@ add_executable(fastCVT 	main.cpp sdfs.hpp)
 
 find_package(TBB REQUIRED)
 find_package(CGAL REQUIRED)
-target_link_libraries(fast_mcmt PUBLIC ${ThirdPartLibPath} TBB::tbb TBB::tbbmalloc CGAL::CGAL)
+# include fast_mcmt.hpp with fast_mcmt lib
+target_include_directories(fast_mcmt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(fast_mcmt PUBLIC TBB::tbb TBB::tbbmalloc CGAL::CGAL)
 target_link_libraries(fastCVT PUBLIC fast_mcmt)
-
 
  

@@ -7,7 +7,7 @@ namespace py = pybind11;
 
 namespace mcmt
 {
-  GEO::MCMT mcmt = GEO::MCMT();
+  MCMT::MCMT mcmt = MCMT::MCMT();
 
   void add_points(py::array_t<double> &point_positions, py::array_t<double> &point_values)
   {
@@ -21,72 +21,50 @@ namespace mcmt
     {
       throw std::runtime_error("Input points and values must have the same number of rows");
     }
-    mcmt.add_points(num_points, point_positions_prt, point_values_prt);
-  }
-
-  void add_mid_points(py::array_t<double> &point_positions, py::array_t<double> &point_values)
-  {
-    py::buffer_info point_positions_buffer = point_positions.request();
-    double *point_positions_prt = (double *)point_positions_buffer.ptr;
-    int num_points = point_positions_buffer.shape[0];
-    py::buffer_info point_values_buffer = point_values.request();
-    double *point_values_prt = (double *)point_values_buffer.ptr;
-    int num_values = point_values_buffer.shape[0];
-    if (num_points != num_values)
+    std::vector<Point> points;
+    std::vector<double> point_values_vec;
+    for (int i = 0; i < num_points; i++)
     {
-      throw std::runtime_error("Input points and values must have the same number of rows");
+      points.push_back(Point(point_positions_prt[3 * i], point_positions_prt[3 * i + 1], point_positions_prt[3 * i + 2]));
+      point_values_vec.push_back(point_values_prt[i]);
     }
-    mcmt.add_mid_points(num_points, point_positions_prt, point_values_prt);
-  }
-
-  static py::array_t<double> sample_points_rejection(int num_points, double min_value, double max_value)
-  {
-    std::vector<double> new_samples = mcmt.sample_points_rejection(num_points, min_value, max_value);
-    return py::array_t<double>(new_samples.size(), new_samples.data());
+    mcmt.add_points(points, point_values_vec);
   }
   
-  static py::array_t<double> sample_points_voronoi(int num_points)
+  static py::array_t<double> sample_points_tetrahedron(int num_points)
   {
-    std::vector<double> new_samples = mcmt.sample_points_voronoi(num_points);
-    return py::array_t<double>(new_samples.size(), new_samples.data());
-  }
-
-
-  static py::array_t<double> get_grid_points()
-  {
-    std::vector<double> grid_points = mcmt.get_grid_points();
-    return py::array_t<double>(grid_points.size(), grid_points.data());
-  }
-
-  static py::array_t<double> lloyd_relaxation(py::array_t<double> &point_positions, int num_iter, double min_value, double max_value)
-  {
-    py::buffer_info point_positions_buffer = point_positions.request();
-    double *point_positions_prt = (double *)point_positions_buffer.ptr;
-    int num_points = point_positions_buffer.shape[0];
-    std::vector<double> new_samples = mcmt.lloyd_relaxation(point_positions_prt, num_points, num_iter);
-    return py::array_t<double>(new_samples.size(), new_samples.data());
+    std::vector<Point> new_samples = mcmt.sample_tetrahedron(num_points);
+    std::vector<double> new_samples_vec;
+    for (int i = 0; i < new_samples.size(); i++)
+    {
+      new_samples_vec.push_back(new_samples[i].x());
+      new_samples_vec.push_back(new_samples[i].y());
+      new_samples_vec.push_back(new_samples[i].z());
+    }
+    return py::array_t<double>(new_samples_vec.size(), new_samples_vec.data());
   }
 
   static py::array_t<double> get_mid_points()
   {
-    std::vector<double> mid_points = mcmt.get_mid_points();
-    return py::array_t<double>(mid_points.size(), mid_points.data());
-  }
-
-  static py::array_t<double> get_grids()
-  {
-    std::vector<int> grid = mcmt.get_grids();
-    return py::array_t<int>(grid.size(), grid.data());
+    std::vector<Point> mid_points = mcmt.get_mid_points();
+    std::vector<double> mid_points_vec;
+    for (int i = 0; i < mid_points.size(); i++)
+    {
+      mid_points_vec.push_back(mid_points[i].x());
+      mid_points_vec.push_back(mid_points[i].y());
+      mid_points_vec.push_back(mid_points[i].z());
+    }
+    return py::array_t<double>(mid_points_vec.size(), mid_points_vec.data());
   }
 
   void output_triangle_mesh(std::string filename)
   {
-    mcmt.save_triangle_mesh(filename);
+    mcmt.export_surface_obj(filename);
   }
 
-  void output_grid_mesh(std::string filename, float x_clip_plane)
+  void output_grid_mesh(std::string filename)
   {
-    mcmt.save_grid_mesh(filename, x_clip_plane);
+    mcmt.export_grid_off(filename);
   }
 
   void clear_mcmt()
@@ -99,26 +77,16 @@ namespace mcmt
 
     m.def("add_points", &add_points,
           "add points to mcmt");
-    m.def("add_mid_points", &add_mid_points,
-          "add mid points to mcmt");
-    m.def("sample_points_rejection", &sample_points_rejection,
+    m.def("sample_points_tetrahedron", &sample_points_tetrahedron,
           "monte carlo sampling from mcm");
-    m.def("sample_points_voronoi", &sample_points_voronoi,
-          "monte carlo sampling from mcm");
-    m.def("lloyd_relaxation", &lloyd_relaxation,
-          "lloyd relaxation");
-    m.def("get_grid_points", &get_grid_points,
-          "get all grid points");
     m.def("get_mid_points", &get_mid_points,
           "get all mid points");
-    m.def("get_grids", &get_grids,
-          "get all grids");
     m.def("output_triangle_mesh", &output_triangle_mesh,
           "output triangle mesh");
     m.def("output_grid_mesh", &output_grid_mesh,
           "output grid mesh");
-    m.def("clear_mcmt", &clear_mcmt,
-          "clear");
+    m.def("clear", &clear_mcmt,
+          "clear mcmt");
   }
 
 }

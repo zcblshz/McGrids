@@ -18,7 +18,7 @@ if __name__ == "__main__":
     parser.add_argument('--threshold', type=float,
                         default=1e-4, help='Terminating threshold')
     parser.add_argument('--resolution', type=int,
-                        default=4, help='Initial resolution')
+                        default=16, help='Initial resolution')
     parser.add_argument('--num_sample_iters', type=int,
                         default=20, help='Number of sample iterations')
     parser.add_argument('--num_sample_points', type=int,
