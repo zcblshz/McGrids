@@ -4,8 +4,8 @@
 int main(int argc, char **argv)
 {
     using namespace GEO;
-    double threshold = 1e-5;
-    int constrain_res = 4;
+    double threshold = 1e-6;
+    int constrain_res = 8;
     int num_constrain_points = constrain_res * constrain_res * constrain_res;
 
     std::vector<Point> points;
@@ -39,8 +39,8 @@ int main(int argc, char **argv)
     MCMT mcmt = MCMT();
     int num_initial_points = mcmt.add_points(points, point_values);
 
-    mcmt.export_grid_off("Grid_initial.off");
-    mcmt.export_surface_obj("Surface_initial.obj");
+    // mcmt.export_grid_off("Grid_initial.off");
+    // mcmt.export_surface_obj("Surface_initial.obj");
 
     std::cout << "Initial points added: " << num_initial_points << std::endl;
 
@@ -55,11 +55,10 @@ int main(int argc, char **argv)
         }
         int num_vertices = mcmt.add_points(sampled_points, sampled_point_values);
         std::cout << "Iter: " << i << " Total Points: " << num_vertices << std::endl;
-
     }
 
-    mcmt.export_grid_off("Grid_after_random_sample.off");
-    mcmt.export_surface_obj("Surface_after_random_sample.obj");
+    // mcmt.export_grid_off("Grid_after_random_sample.off");
+    // mcmt.export_surface_obj("Surface_after_random_sample.obj");
 
     // mid point iters
     for(int i=0; i< 100; i++){

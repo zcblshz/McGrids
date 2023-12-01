@@ -21,10 +21,10 @@ namespace GEO
     }
 
     int MCMT::add_points(const std::vector<Point> &points, const std::vector<double> &point_values)
-    {   
+    {
         int current_num_vertices = 0;
         if (delaunay_ != nullptr)
-         current_num_vertices = delaunay_->number_of_vertices();
+            current_num_vertices = delaunay_->number_of_vertices();
         std::vector<double> bbox = compute_point_bbox(points);
         std::vector<std::pair<Point, VertexInfo>> points_with_info;
         for (int i = 0; i < points.size(); i++)
@@ -47,104 +47,141 @@ namespace GEO
         delete delaunay_;
     }
 
-    std::vector<Point> MCMT::sample_tetrahedron(int num_points){
-        std::vector<double> tetrahedron_volume;
-        // piggback on the delaunay point data structure
-        std::vector<Point> tetrahedron_densities;
-        std::vector<Cell_handle> tetrahedron_cells;
-        tetrahedron_volume.reserve(delaunay_->number_of_finite_cells());
-
-        for (Finite_cells_iterator cit = delaunay_->finite_cells_begin(); cit != delaunay_->finite_cells_end(); cit++){
-            double density_sum = cit->vertex(0)->info().point_density + cit->vertex(1)->info().point_density + cit->vertex(2)->info().point_density + cit->vertex(3)->info().point_density;
-            tetrahedron_volume.push_back(delaunay_->tetrahedron(cit).volume() * density_sum);
-            Point density = Point(cit->vertex(0)->info().point_density, cit->vertex(1)->info().point_density, cit->vertex(2)->info().point_density, cit->vertex(3)->info().point_density);
-            tetrahedron_cells.push_back(cit);
-        }  
-        // normalize the volume
-        double total_volume = std::accumulate(tetrahedron_volume.begin(), tetrahedron_volume.end(), 0.0);
-        for (int i = 0; i < tetrahedron_volume.size(); i++){
-            tetrahedron_volume[i] /= total_volume;
+    std::vector<Point> MCMT::sample_tetrahedron(int num_points)
+    {
+        tbb::concurrent_vector<double> tetrahedron_volume;
+        tetrahedron_volume.resize(delaunay_->number_of_finite_cells());
+        std::vector<Finite_cells_iterator> cells;
+        for (auto it = delaunay_->finite_cells_begin(); it != delaunay_->finite_cells_end(); ++it)
+        {
+            cells.push_back(it);
         }
+
+        tbb::parallel_for(
+            tbb::blocked_range<size_t>(0, delaunay_->number_of_finite_cells()),
+            [&](const tbb::blocked_range<size_t>& r)
+            {
+                for (size_t i = r.begin(); i != r.end(); ++i)
+                {
+                    const Finite_cells_iterator& cit = cells[i];
+                    double density_sum = cit->vertex(0)->info().point_density + cit->vertex(1)->info().point_density + cit->vertex(2)->info().point_density + cit->vertex(3)->info().point_density;
+                    Point density = Point(cit->vertex(0)->info().point_density, cit->vertex(1)->info().point_density, cit->vertex(2)->info().point_density, cit->vertex(3)->info().point_density);
+                    tetrahedron_volume[i] = delaunay_->tetrahedron(cit).volume() * density_sum;
+                }
+            });
+
+        std::cout << "012" << std::endl;
+
+        // normalize the volume
+        double total_volume = tbb::parallel_reduce(tbb::blocked_range<tbb::concurrent_vector<double>::iterator>(tetrahedron_volume.begin(), tetrahedron_volume.end()), 0.0,
+                                        [](tbb::blocked_range<tbb::concurrent_vector<double>::iterator> const& range, double init) {
+                                            return std::accumulate(range.begin(), range.end(), init);
+                                        }, std::plus<double>()
+                                        );
+
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, tetrahedron_volume.size()), [&](const tbb::blocked_range<size_t>& r) {
+            for (size_t i = r.begin(); i != r.end(); ++i) {
+                tetrahedron_volume[i] /= total_volume;
+            }
+        });
+
         // sample tetrahedron
         std::random_device rd;
         std::mt19937 gen(rd());
         std::discrete_distribution<int> volume_distribution(tetrahedron_volume.begin(), tetrahedron_volume.end());
-        std::vector<Point> sampled_points;
-        sampled_points.reserve(num_points);
-        for(int n=0; n<num_points;n++){
+        tbb::concurrent_vector<Point> sampled_points;
+        
+        tbb::parallel_for(0, num_points, [&](int n) {
             int cell_index = volume_distribution(gen);
-            Point sample_point = sample_tetrahedron(tetrahedron_cells[cell_index]);
+            Point sample_point = sample_tetrahedron(cells[cell_index]);
             sampled_points.push_back(sample_point);
-        }
+        });
 
-        return sampled_points;
+        // convert concurrent_vector to vector
+        std::vector<Point> sampled_points_vec(sampled_points.begin(), sampled_points.end());
+        return sampled_points_vec;
     }
 
     std::vector<Point> MCMT::get_mid_points()
     {
-        std::vector<Cell_handle> new_cells;
+        tbb::concurrent_vector<Cell_handle> new_cells;
 
-        for (Finite_cells_iterator cit = delaunay_->finite_cells_begin(); cit != delaunay_->finite_cells_end(); cit++)
+        std::vector<Finite_cells_iterator> cells;
+        for (auto it = delaunay_->finite_cells_begin(); it != delaunay_->finite_cells_end(); ++it)
         {
-            bool skip_mid_point = false;
-            // if all vertices are visited, skip
-            if (cit->vertex(0)->info().visited && cit->vertex(1)->info().visited && cit->vertex(2)->info().visited && cit->vertex(3)->info().visited)
-            {
-                skip_mid_point = true;
-                continue;
-            }
-            // if volume is too small, skip
-            double volume = delaunay_->tetrahedron(cit).volume();
-            if (volume < 1e-9)
-            {
-                skip_mid_point = true;
-                continue;
-            }
-
-            // if all vertices are positive or negative, skip
-            unsigned char index = 0;
-            for (int lv = 0; lv < 4; ++lv)
-            {
-                if (cit->vertex(lv)->info().point_value < 0)
-                    index |= (1 << lv);
-            }
-            if (index == 0x00 || index == 0x0F)
-            {
-                skip_mid_point = true;
-                continue;
-            }
-            // if all pass, compute the mid point
-            if (!skip_mid_point)
-                new_cells.push_back(cit);
+            cells.push_back(it);
         }
-
-        std::vector<Point> mid_points;
-        for (Cell_handle ch : new_cells)
-        {
-            // set all vertex as visited
-            for (int lv = 0; lv < 4; ++lv)
+        tbb::parallel_for_each(
+            cells.begin(),
+            cells.end(),
+            [&](const Finite_cells_iterator &cit)
             {
-                ch->vertex(lv)->info().visited = true;
-            }
-
-            double x_sum = 0, y_sum = 0, z_sum = 0;
-            int num_intersection = 0;
-            for (std::pair<int, int> config : configurations_)
-            {
-                int v1 = config.first;
-                int v2 = config.second;
-                if (ch->vertex(v1)->info().point_value * ch->vertex(v2)->info().point_value < 0)
+                bool skip_mid_point = false;
+                // if all vertices are visited, skip
+                if (cit->vertex(0)->info().visited && cit->vertex(1)->info().visited && cit->vertex(2)->info().visited && cit->vertex(3)->info().visited)
                 {
-                    Point intersection_point = interpolate(ch->vertex(v1), ch->vertex(v2));
-                    x_sum += intersection_point.x();
-                    y_sum += intersection_point.y();
-                    z_sum += intersection_point.z();
-                    num_intersection++;
+                    skip_mid_point = true;
+                    return;
                 }
-            }
-            mid_points.push_back(Point(x_sum / num_intersection, y_sum / num_intersection, z_sum / num_intersection));
-        }
-        return mid_points;
+                // if volume is too small, skip
+                double volume = delaunay_->tetrahedron(cit).volume();
+                if (volume < 1e-9)
+                {
+                    skip_mid_point = true;
+                    return;
+
+                }
+
+                // if all vertices are positive or negative, skip
+                unsigned char index = 0;
+                for (int lv = 0; lv < 4; ++lv)
+                {
+                    if (cit->vertex(lv)->info().point_value < 0)
+                        index |= (1 << lv);
+                }
+                if (index == 0x00 || index == 0x0F)
+                {
+                    skip_mid_point = true;
+                    return;
+                }
+                // if all pass, compute the mid point
+                if (!skip_mid_point)
+                    new_cells.push_back(cit);
+            });
+
+        tbb::concurrent_vector<Point> mid_points;
+
+        tbb::parallel_for_each(
+            new_cells.begin(),
+            new_cells.end(),
+            [&](const Cell_handle &ch)
+            {
+                // set all vertex as visited
+                for (int lv = 0; lv < 4; ++lv)
+                {
+                    ch->vertex(lv)->info().visited = true;
+                }
+
+                double x_sum = 0, y_sum = 0, z_sum = 0;
+                int num_intersection = 0;
+                for (std::pair<int, int> config : configurations_)
+                {
+                    int v1 = config.first;
+                    int v2 = config.second;
+                    if (ch->vertex(v1)->info().point_value * ch->vertex(v2)->info().point_value < 0)
+                    {
+                        Point intersection_point = interpolate(ch->vertex(v1), ch->vertex(v2));
+                        x_sum += intersection_point.x();
+                        y_sum += intersection_point.y();
+                        z_sum += intersection_point.z();
+                        num_intersection++;
+                    }
+                }
+                mid_points.push_back(Point(x_sum / num_intersection, y_sum / num_intersection, z_sum / num_intersection));
+            });
+        // convert concurrent_vector to vector
+        std::vector<Point> mid_points_vec(mid_points.begin(), mid_points.end());
+        return mid_points_vec;
     }
 
     Point MCMT::sample_tetrahedron(Cell_handle cell)
@@ -166,8 +203,6 @@ namespace GEO
         double s = (double)rand() / RAND_MAX;
         double t = (double)rand() / RAND_MAX;
         double u = (double)rand() / RAND_MAX;
-
-
 
         if (s + t > 1.0)
         {
