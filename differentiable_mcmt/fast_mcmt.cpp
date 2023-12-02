@@ -5,6 +5,8 @@ namespace MCMT
     MCMT::MCMT()
     {
         delaunay_ = nullptr;
+        CGAL::Bbox_3 bbox_ = CGAL::Bbox_3(-1.0, -1.0, -1.0, 1.0, 1.0, 1.0);
+        locking_ds_ = new Delaunay::Lock_data_structure(bbox_, 100);
         configurations_.clear();
         configurations_.push_back(std::make_pair(0, 1));
         configurations_.push_back(std::make_pair(0, 2));
@@ -24,30 +26,29 @@ namespace MCMT
         int current_num_vertices = 0;
         if (delaunay_ != nullptr)
             current_num_vertices = delaunay_->number_of_vertices();
-        std::vector<double> bbox = compute_point_bbox(points);
         std::vector<std::pair<Point, VertexInfo>> points_with_info;
-        for (int i = 0; i < points.size(); i++)
-        {
-            points_with_info.push_back(std::make_pair(points[i], VertexInfo(i + current_num_vertices, point_values[i], compute_point_density(point_values[i]))));
-        }
+        points_with_info.resize(points.size());
+        tbb::parallel_for(0, (int)points.size(), [&](int i)
+                          { points_with_info[i] = std::make_pair(points[i], VertexInfo(i + current_num_vertices, point_values[i], compute_point_density(point_values[i]))); });
         // create a lock datastructure for parallel insertion
-        Delaunay::Lock_data_structure locking_ds(CGAL::Bbox_3(bbox[0], bbox[1], bbox[2], bbox[3], bbox[4], bbox[5]), 50);
+        std::vector<double> bbox = compute_point_bbox(points);
+        locking_ds_ = new Delaunay::Lock_data_structure(CGAL::Bbox_3(bbox[0], bbox[1], bbox[2], bbox[3], bbox[4], bbox[5]), 100);
         if (delaunay_ == nullptr)
-            delaunay_ = new Delaunay(points_with_info.begin(), points_with_info.end(), &locking_ds);
+            delaunay_ = new Delaunay(points_with_info.begin(), points_with_info.end(), locking_ds_);
         else
-            delaunay_->insert(points_with_info.begin(), points_with_info.end(), &locking_ds);
+            delaunay_->insert(points_with_info.begin(), points_with_info.end(), locking_ds_);
 
         newly_created_cells_.clear();
-        tbb::parallel_for_each(points.begin(), points.end(), [&](const Point& point) {
+        tbb::parallel_for_each(points.begin(), points.end(), [&](const Point &point)
+                               {
             Vertex_handle vh = delaunay_->nearest_vertex(point);
             // find all the cells that contains this vertex
             std::vector<Cell_handle> incident_cells;
             delaunay_->incident_cells(vh, std::back_inserter(incident_cells));
             tbb::parallel_for_each(incident_cells.begin(), incident_cells.end(), [&](const Cell_handle& cell) {
                 newly_created_cells_.insert(cell);
-            });
-        });
-        
+            }); });
+
         assert(delaunay_->is_valid());
         return delaunay_->number_of_vertices();
     }
@@ -70,11 +71,11 @@ namespace MCMT
 
         tbb::parallel_for(
             tbb::blocked_range<size_t>(0, delaunay_->number_of_finite_cells()),
-            [&](const tbb::blocked_range<size_t>& r)
+            [&](const tbb::blocked_range<size_t> &r)
             {
                 for (size_t i = r.begin(); i != r.end(); ++i)
                 {
-                    const Finite_cells_iterator& cit = cells[i];
+                    const Finite_cells_iterator &cit = cells[i];
                     double density_sum = cit->vertex(0)->info().point_density + cit->vertex(1)->info().point_density + cit->vertex(2)->info().point_density + cit->vertex(3)->info().point_density;
                     Point density = Point(cit->vertex(0)->info().point_density, cit->vertex(1)->info().point_density, cit->vertex(2)->info().point_density, cit->vertex(3)->info().point_density);
                     tetrahedron_volume[i] = delaunay_->tetrahedron(cit).volume() * density_sum;
@@ -82,29 +83,31 @@ namespace MCMT
             });
 
         // normalize the volume
-        double total_volume = tbb::parallel_reduce(tbb::blocked_range<tbb::concurrent_vector<double>::iterator>(tetrahedron_volume.begin(), tetrahedron_volume.end()), 0.0,
-                                        [](tbb::blocked_range<tbb::concurrent_vector<double>::iterator> const& range, double init) {
-                                            return std::accumulate(range.begin(), range.end(), init);
-                                        }, std::plus<double>()
-                                        );
+        double total_volume = tbb::parallel_reduce(
+            tbb::blocked_range<tbb::concurrent_vector<double>::iterator>(tetrahedron_volume.begin(), tetrahedron_volume.end()), 0.0,
+            [](tbb::blocked_range<tbb::concurrent_vector<double>::iterator> const &range, double init)
+            {
+                return std::accumulate(range.begin(), range.end(), init);
+            },
+            std::plus<double>());
 
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, tetrahedron_volume.size()), [&](const tbb::blocked_range<size_t>& r) {
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, tetrahedron_volume.size()), [&](const tbb::blocked_range<size_t> &r)
+                          {
             for (size_t i = r.begin(); i != r.end(); ++i) {
                 tetrahedron_volume[i] /= total_volume;
-            }
-        });
+            } });
 
         // sample tetrahedron
         std::random_device rd;
         std::mt19937 gen(rd());
         std::discrete_distribution<int> volume_distribution(tetrahedron_volume.begin(), tetrahedron_volume.end());
         tbb::concurrent_vector<Point> sampled_points;
-        
-        tbb::parallel_for(0, num_points, [&](int n) {
+
+        tbb::parallel_for(0, num_points, [&](int n)
+                          {
             int cell_index = volume_distribution(gen);
             Point sample_point = sample_tetrahedron(cells[cell_index]);
-            sampled_points.push_back(sample_point);
-        });
+            sampled_points.push_back(sample_point); });
 
         // convert concurrent_vector to vector
         std::vector<Point> sampled_points_vec(sampled_points.begin(), sampled_points.end());
@@ -114,26 +117,19 @@ namespace MCMT
     std::vector<Point> MCMT::get_mid_points()
     {
         tbb::concurrent_vector<Cell_handle> new_cells;
-
+        tbb::concurrent_vector<Point> mid_points;
         tbb::parallel_for_each(
             newly_created_cells_.begin(),
             newly_created_cells_.end(),
             [&](const Cell_handle &cit)
             {
                 bool skip_mid_point = false;
-                // if all vertices are visited, skip
-                if (cit->vertex(0)->info().visited && cit->vertex(1)->info().visited && cit->vertex(2)->info().visited && cit->vertex(3)->info().visited)
-                {
-                    skip_mid_point = true;
-                    return;
-                }
-                // // if volume is too small, skip
+                // if volume is too small, skip
                 double volume = delaunay_->tetrahedron(cit).volume();
                 if (volume < 1e-12)
                 {
                     skip_mid_point = true;
                     return;
-
                 }
 
                 // if all vertices are positive or negative, skip
@@ -150,37 +146,24 @@ namespace MCMT
                 }
                 // if all pass, compute the mid point
                 if (!skip_mid_point)
-                    new_cells.push_back(cit);
-            });
-
-        tbb::concurrent_vector<Point> mid_points;
-        tbb::parallel_for_each(
-            new_cells.begin(),
-            new_cells.end(),
-            [&](const Cell_handle &ch)
-            {
-                // set all vertex as visited
-                for (int lv = 0; lv < 4; ++lv)
                 {
-                    ch->vertex(lv)->info().visited = true;
-                }
-
-                double x_sum = 0, y_sum = 0, z_sum = 0;
-                int num_intersection = 0;
-                for (std::pair<int, int> config : configurations_)
-                {
-                    int v1 = config.first;
-                    int v2 = config.second;
-                    if (ch->vertex(v1)->info().point_value * ch->vertex(v2)->info().point_value < 0)
+                    double x_sum = 0, y_sum = 0, z_sum = 0;
+                    int num_intersection = 0;
+                    for (std::pair<int, int> config : configurations_)
                     {
-                        Point intersection_point = interpolate(ch->vertex(v1), ch->vertex(v2));
-                        x_sum += intersection_point.x();
-                        y_sum += intersection_point.y();
-                        z_sum += intersection_point.z();
-                        num_intersection++;
+                        int v1 = config.first;
+                        int v2 = config.second;
+                        if (cit->vertex(v1)->info().point_value * cit->vertex(v2)->info().point_value < 0)
+                        {
+                            Point intersection_point = interpolate(cit->vertex(v1), cit->vertex(v2));
+                            x_sum += intersection_point.x();
+                            y_sum += intersection_point.y();
+                            z_sum += intersection_point.z();
+                            num_intersection++;
+                        }
                     }
+                    mid_points.push_back(Point(x_sum / num_intersection, y_sum / num_intersection, z_sum / num_intersection));
                 }
-                mid_points.push_back(Point(x_sum / num_intersection, y_sum / num_intersection, z_sum / num_intersection));
             });
         // convert concurrent_vector to vector
         std::vector<Point> mid_points_vec(mid_points.begin(), mid_points.end());
@@ -561,33 +544,31 @@ namespace MCMT
         double max_x = points[0].x();
         double max_y = points[0].y();
         double max_z = points[0].z();
-        for (int i = 0; i < points.size(); i++)
-        {
-            if (points[i].x() < min_x)
-            {
-                min_x = points[i].x();
-            }
-            if (points[i].y() < min_y)
-            {
-                min_y = points[i].y();
-            }
-            if (points[i].z() < min_z)
-            {
-                min_z = points[i].z();
-            }
-            if (points[i].x() > max_x)
-            {
-                max_x = points[i].x();
-            }
-            if (points[i].y() > max_y)
-            {
-                max_y = points[i].y();
-            }
-            if (points[i].z() > max_z)
-            {
-                max_z = points[i].z();
-            }
-        }
+
+        // here may exist potential race condition, but it should be fine
+        tbb::parallel_for(tbb::blocked_range<int>(1, points.size()), [&](const tbb::blocked_range<int> &range)
+                          {
+            for (int i = range.begin(); i != range.end(); ++i) {
+                if (points[i].x() < min_x) {
+                    min_x = points[i].x();
+                }
+                if (points[i].y() < min_y) {
+                    min_y = points[i].y();
+                }
+                if (points[i].z() < min_z) {
+                    min_z = points[i].z();
+                }
+                if (points[i].x() > max_x) {
+                    max_x = points[i].x();
+                }
+                if (points[i].y() > max_y) {
+                    max_y = points[i].y();
+                }
+                if (points[i].z() > max_z) {
+                    max_z = points[i].z();
+                }
+            } });
+
         double padding = 1e-3;
         min_x -= padding;
         min_y -= padding;

@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.15..3.26)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(MyProject PRIVATE -O3)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(MyProject PRIVATE /O2)
+endif()
 # Set a name and a version number for your project:
 project(
   mcmt

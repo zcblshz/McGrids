@@ -59,6 +59,7 @@ namespace MCMT
 		void export_surface_obj(const std::string &filename);
 	private:
 		Delaunay *delaunay_;
+        Delaunay::Lock_data_structure *locking_ds_;
 		std::vector<std::pair<int, int>> configurations_;
 		tbb::concurrent_set<Cell_handle> newly_created_cells_;
 		Point interpolate(Vertex_handle p1, Vertex_handle p2);
