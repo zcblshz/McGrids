@@ -18,7 +18,7 @@
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
 #include <tbb/concurrent_unordered_map.h>
 #include <tbb/concurrent_set.h>
-
+#include <tbb/spin_mutex.h>
 struct VertexInfo {
 	int point_index;
 	bool visited = false;

@@ -544,28 +544,40 @@ namespace MCMT
         double max_x = points[0].x();
         double max_y = points[0].y();
         double max_z = points[0].z();
-
+        tbb::spin_mutex mutex;
         // here may exist potential race condition, but it should be fine
         tbb::parallel_for(tbb::blocked_range<int>(1, points.size()), [&](const tbb::blocked_range<int> &range)
                           {
             for (int i = range.begin(); i != range.end(); ++i) {
                 if (points[i].x() < min_x) {
+                    mutex.lock();
                     min_x = points[i].x();
+                    mutex.unlock();
                 }
                 if (points[i].y() < min_y) {
+                    mutex.lock();
                     min_y = points[i].y();
+                    mutex.unlock();
                 }
                 if (points[i].z() < min_z) {
+                    mutex.lock();
                     min_z = points[i].z();
+                    mutex.unlock();
                 }
                 if (points[i].x() > max_x) {
+                    mutex.lock();
                     max_x = points[i].x();
+                    mutex.unlock();
                 }
                 if (points[i].y() > max_y) {
+                    mutex.lock();
                     max_y = points[i].y();
+                    mutex.unlock();
                 }
                 if (points[i].z() > max_z) {
+                    mutex.lock();
                     max_z = points[i].z();
+                    mutex.unlock();
                 }
             } });
 
