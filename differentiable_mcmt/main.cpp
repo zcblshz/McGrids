@@ -9,6 +9,8 @@ int main(int argc, char **argv)
 
     std::vector<Point> points;
     std::vector<double> point_values;
+    std::vector<double> point_curvatures;
+
 
     for (int i = 0; i < constrain_res; i++)
     {
@@ -29,6 +31,8 @@ int main(int argc, char **argv)
                 double value = SDF::sphere_sdf(px-0.5, py-0.5, pz-0.5);
                 points.push_back(Point(px-0.5, py-0.5, pz-0.5));
                 point_values.push_back(value);
+                point_curvatures.push_back(1);
+
             }
         }
     }
@@ -36,7 +40,7 @@ int main(int argc, char **argv)
 
 
     MCMT::MCMT mcmt = MCMT::MCMT();
-    int num_initial_points = mcmt.add_points(points, point_values);
+    int num_initial_points = mcmt.add_points(points, point_values, point_curvatures);
 
     // mcmt.export_grid_off("Grid_initial.off");
     // mcmt.export_surface_obj("Surface_initial.obj");
@@ -47,12 +51,14 @@ int main(int argc, char **argv)
     for(int i =0; i< 100; i++){
         std::vector<Point> sampled_points = mcmt.sample_tetrahedron(128);
         std::vector<double> sampled_point_values;
+        std::vector<double> mid_point_curvatures;
         for (int j = 0; j < sampled_points.size(); j++)
         {
             double value = SDF::sphere_sdf(sampled_points[j].x(), sampled_points[j].y(), sampled_points[j].z());
             sampled_point_values.push_back(value);
+            mid_point_curvatures.push_back(1);
         }
-        int num_vertices = mcmt.add_points(sampled_points, sampled_point_values);
+        int num_vertices = mcmt.add_points(sampled_points, sampled_point_values, mid_point_curvatures);
         std::cout << "Iter: " << i << " Total Points: " << num_vertices << std::endl;
     }
 
@@ -66,17 +72,20 @@ int main(int argc, char **argv)
         std::cout <<    "Num mid points: " << mid_points.size() << std::endl;
         std::vector<Point> added_points;
         std::vector<double> mid_point_values;
+        std::vector<double> mid_point_curvatures;
+
         for (int i = 0; i < mid_points.size(); i++)
         {
             double value = SDF::sphere_sdf(mid_points[i].x(), mid_points[i].y(), mid_points[i].z());
             if(std::abs(value) > threshold){
                 added_points.push_back(mid_points[i]);
                 mid_point_values.push_back(value);
+                mid_point_curvatures.push_back(1);
             }
         }
         if (added_points.size() == 0)
             break;
-        int num_vertices = mcmt.add_points(added_points, mid_point_values);
+        int num_vertices = mcmt.add_points(added_points, mid_point_values, mid_point_curvatures);
         std::cout << "Total Points: " << num_vertices << std::endl;
     }
 

@@ -171,6 +171,34 @@ class SphereSDF(SDF):
         # points [N, 3]
         return torch.norm(points, dim=-1) - self.radius
 
+    def curvature(self, points):
+        sdf = self.sdf(points)
+        mean_curvature = self.mean_curvature(sdf, points)
+        return mean_curvature
+
+    def mean_curvature(self, y, x):
+        grad = self.gradient(y, x)
+        grad_norm = torch.norm(grad, dim=-1)
+        unit_grad = grad.squeeze(-1)/(grad_norm.unsqueeze(-1))
+
+        Km = 0.5*self.divergence(unit_grad, x)
+        return Km
+
+    def gradient(self, y, x, grad_outputs=None):
+        if grad_outputs is None:
+            grad_outputs = torch.ones_like(y)
+        grad = torch.autograd.grad(
+            y, [x], grad_outputs=grad_outputs, create_graph=True
+        )[0]
+        return grad
+    
+    def divergence(self, y, x):
+        div = 0.
+        for i in range(y.shape[-1]):
+            div += torch.autograd.grad(
+                y[..., i], x, torch.ones_like(y[..., i]), create_graph=True
+            )[0][..., i:i+1]
+        return div
 
 class BoxSDF(SDF):
 
@@ -218,7 +246,7 @@ class LinkSDF(SDF):
 
 class RoundedBoxSDF(SDF):
 
-    def __init__(self, dims=torch.tensor([0.5, 0.5, 0.5]), r=0.1):
+    def __init__(self, dims=torch.tensor([0.2, 0.2, 0.2]), r=0.1):
         super(RoundedBoxSDF, self).__init__()
         self.dims = dims
         self.r = torch.tensor(r)
@@ -232,3 +260,50 @@ class RoundedBoxSDF(SDF):
         q = torch.abs(points) - self.dims.unsqueeze(0)
         return torch.clamp(q, min=0.0).norm(dim=-1) + torch.clamp(
             torch.maximum(q[:, 0], torch.maximum(q[:, 1], q[:, 2])), max=0.0) - self.r
+
+    def curvature(self, points):
+        sdf = self.sdf(points)
+        mean_curvature = self.mean_curvature(sdf, points)
+        return mean_curvature
+
+    def mean_curvature(self, y, x):
+        grad = self.gradient(y, x)
+        grad_norm = torch.norm(grad, dim=-1)
+        unit_grad = grad.squeeze(-1)/(grad_norm.unsqueeze(-1)+1e-4)
+
+        Km = 0.5*self.divergence(unit_grad, x)
+        return Km
+
+    def gradient(self, y, x, grad_outputs=None):
+        if grad_outputs is None:
+            grad_outputs = torch.ones_like(y)
+        grad = torch.autograd.grad(
+            y, [x], grad_outputs=grad_outputs, create_graph=True
+        )[0]
+        return grad
+    
+    def divergence(self, y, x):
+        div = 0.
+        for i in range(y.shape[-1]):
+            div += torch.autograd.grad(
+                y[..., i], x, torch.ones_like(y[..., i]), create_graph=True
+            )[0][..., i:i+1]
+        return div
+    
+if __name__ == "__main__":
+    SDF = RoundedBoxSDF()
+    points = torch.randn(1000, 3)
+    points.requires_grad = True
+    curvature = SDF.curvature(points)[:, 0]
+    import plyfile
+    # write ply with curvature
+    vertex = np.array(points.detach().cpu())
+    vertex_color = np.array(curvature.detach().cpu())
+    vertex_normal = np.array(SDF.normals(points).detach().cpu())
+    vertex = np.hstack((vertex, vertex_color[:, None]))
+    vertex = np.hstack((vertex, vertex_normal))
+    vertex = np.core.records.fromarrays(vertex.transpose(), names='x, y, z, curv, nx, ny, nz')
+    el = plyfile.PlyElement.describe(vertex, 'vertex')
+    plydata = plyfile.PlyData([el], text=True)
+    plydata.write('curvature.ply')
+    

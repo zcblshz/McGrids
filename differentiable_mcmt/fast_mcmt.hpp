@@ -52,7 +52,7 @@ namespace MCMT
 		MCMT();
 		~MCMT();
 		void clear();
-		int add_points(const std::vector<Point> &points, const std::vector<double> &point_values);
+		int add_points(const std::vector<Point> &points, const std::vector<double> &point_values, const std::vector<double> &point_curvatures);
 		std::vector<Point> sample_tetrahedron(int num_samples);
 		std::vector<Point> get_mid_points();
 		void export_grid_off(const std::string &filename);
@@ -64,7 +64,7 @@ namespace MCMT
 		tbb::concurrent_set<Cell_handle> newly_created_cells_;
 		Point interpolate(Vertex_handle p1, Vertex_handle p2);
 		std::vector<double> compute_point_bbox(const std::vector<Point>& points);
-		double compute_point_density(double point_value);
+		double compute_point_density(double point_value, double point_curvature);
 		Point sample_tetrahedron(Cell_handle cell);
 	};
 }

@@ -1,12 +1,13 @@
 import argparse
 import sys
 import os
-import open3d as o3d
-from mesh_sdf import MeshSDF
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mcgrids import McGrids
-from sdfs3d import RoundedBoxSDF, SphereSDF
 import torch
+import open3d as o3d
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from sdfs3d import RoundedBoxSDF, SphereSDF
+from mcgrids_curvature import McGrids
+
+
 
 if __name__ == "__main__":
 
@@ -29,9 +30,10 @@ if __name__ == "__main__":
     parser.add_argument('--max', type=float, default=0.5, help='max clip')
     args = parser.parse_args()
 
-    implicite_function = MeshSDF(args.input_path, true_sdf=True)
-
-    grids = McGrids(implicite_function, clip_min=args.min, clip_max=args.max, initial_resolution=args.resolution, num_sample_iters=args.num_sample_iters,
+    rbox = RoundedBoxSDF()
+    implicite_function = lambda x: rbox.sdf(torch.from_numpy(x)).cpu().numpy()
+    curvature_function = lambda x: rbox.curvature(torch.from_numpy(x).requires_grad_(True)).cpu().detach().numpy()
+    grids = McGrids(implicite_function, curvature_function, clip_min=args.min, clip_max=args.max, initial_resolution=args.resolution, num_sample_iters=args.num_sample_iters,
                             num_sample_points=args.num_sample_points, num_mid_iters=args.num_mid_iters, threshold=args.threshold, verbose=True)
     vertices, faces = grids.extract_mesh()
     mesh = o3d.geometry.TriangleMesh()
@@ -39,8 +41,8 @@ if __name__ == "__main__":
     mesh.triangles = o3d.utility.Vector3iVector(faces)
     o3d.io.write_triangle_mesh(args.output_path, mesh)
 
-    # vertices, faces = grids.extract_grid()
-    # mesh = o3d.geometry.TriangleMesh()
-    # mesh.vertices = o3d.utility.Vector3dVector(vertices)
-    # mesh.triangles = o3d.utility.Vector3iVector(faces)
-    # o3d.io.write_triangle_mesh(args.output_path, mesh)
+    vertices, faces = grids.extract_grid()
+    mesh = o3d.geometry.TriangleMesh()
+    mesh.vertices = o3d.utility.Vector3dVector(vertices)
+    mesh.triangles = o3d.utility.Vector3iVector(faces)
+    o3d.io.write_triangle_mesh(args.output_path, mesh)

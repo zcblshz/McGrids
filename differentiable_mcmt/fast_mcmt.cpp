@@ -21,7 +21,7 @@ namespace MCMT
         delete delaunay_;
     }
 
-    int MCMT::add_points(const std::vector<Point> &points, const std::vector<double> &point_values)
+    int MCMT::add_points(const std::vector<Point> &points, const std::vector<double> &point_values, const std::vector<double> &point_curvatures)
     {
         int current_num_vertices = 0;
         if (delaunay_ != nullptr)
@@ -29,7 +29,7 @@ namespace MCMT
         std::vector<std::pair<Point, VertexInfo>> points_with_info;
         points_with_info.resize(points.size());
         tbb::parallel_for(0, (int)points.size(), [&](int i)
-                          { points_with_info[i] = std::make_pair(points[i], VertexInfo(i + current_num_vertices, point_values[i], compute_point_density(point_values[i]))); });
+                          { points_with_info[i] = std::make_pair(points[i], VertexInfo(i + current_num_vertices, point_values[i], compute_point_density(point_values[i], point_curvatures[i]))); });
         // create a lock datastructure for parallel insertion
         std::vector<double> bbox = compute_point_bbox(points);
         locking_ds_ = new Delaunay::Lock_data_structure(CGAL::Bbox_3(bbox[0], bbox[1], bbox[2], bbox[3], bbox[4], bbox[5]), 100);
@@ -591,8 +591,8 @@ namespace MCMT
         return std::vector<double>{min_x, min_y, min_z, max_x, max_y, max_z};
     }
 
-    double MCMT::compute_point_density(double value)
+    double MCMT::compute_point_density(double value, double curvature)
     {
-        return 1 / (abs(value) + 1e-6);
+        return abs(curvature) / (abs(value) + 1e-1);
     }
 }

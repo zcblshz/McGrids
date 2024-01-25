@@ -9,13 +9,17 @@ namespace mcmt
 {
   MCMT::MCMT mcmt = MCMT::MCMT();
 
-  void add_points(py::array_t<double> &point_positions, py::array_t<double> &point_values)
+  void add_points(py::array_t<double> &point_positions, py::array_t<double> &point_values, py::array_t<double> &point_curvatures)
   {
     py::buffer_info point_positions_buffer = point_positions.request();
     double *point_positions_prt = (double *)point_positions_buffer.ptr;
     int num_points = point_positions_buffer.shape[0];
     py::buffer_info point_values_buffer = point_values.request();
     double *point_values_prt = (double *)point_values_buffer.ptr;
+
+    py::buffer_info point_curvatures_buffer = point_curvatures.request();
+    double *point_curvatures_prt = (double *)point_curvatures_buffer.ptr;
+
     int num_values = point_values_buffer.shape[0];
     if (num_points != num_values)
     {
@@ -23,12 +27,15 @@ namespace mcmt
     }
     std::vector<Point> points;
     std::vector<double> point_values_vec;
+    std::vector<double> point_curvatures_vec;
+
     for (int i = 0; i < num_points; i++)
     {
       points.push_back(Point(point_positions_prt[3 * i], point_positions_prt[3 * i + 1], point_positions_prt[3 * i + 2]));
       point_values_vec.push_back(point_values_prt[i]);
+      point_curvatures_vec.push_back(point_curvatures_prt[i]);
     }
-    mcmt.add_points(points, point_values_vec);
+    mcmt.add_points(points, point_values_vec, point_curvatures_vec);
   }
   
   static py::array_t<double> sample_points_tetrahedron(int num_points)
